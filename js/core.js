@@ -149,7 +149,12 @@ const HOMOPHONES = {
     ['sun', 'son'], ['flower', 'flour'], ['pear', 'pair'], ['here', 'hear'], ['no', 'know'], ['bee', 'be'],
     ['blue', 'blew'], ['night', 'knight'], ['meat', 'meet'], ['tail', 'tale'], ['week', 'weak'], ['wood', 'would'],
     ['hour', 'our'], ['deer', 'dear'], ['bear', 'bare'], ['eye', 'i'], ['red', 'read'], ['whole', 'hole'],
-    ['road', 'rode'], ['mail', 'male'], ['plane', 'plain'], ['sale', 'sail'], ['their', 'there'], ['new', 'knew']],
+    ['road', 'rode'], ['mail', 'male'], ['plane', 'plain'], ['sale', 'sail'], ['their', 'there'], ['new', 'knew'],
+    ['bread', 'bred'], ['horse', 'hoarse'], ['nose', 'knows'], ['weather', 'whether'], ['witch', 'which'], ['where', 'wear'],
+    ['rain', 'reign'], ['piece', 'peace'], ['flu', 'flew'], ['hair', 'hare'], ['buy', 'by', 'bye'], ['wait', 'weight'],
+    ['way', 'weigh'], ['knot', 'not'], ['berry', 'bury'], ['heel', 'heal'], ['paws', 'pause'], ['toe', 'tow'],
+    ['break', 'brake'], ['board', 'bored'], ['made', 'maid'], ['tide', 'tied'], ['steel', 'steal'], ['fair', 'fare'],
+    ['cereal', 'serial'], ['dear', 'deer'], ['night', 'nite'], ['tea', 'tee'], ['jeans', 'genes'], ['ok', 'okay']],
   fr: [['vert', 'verre', 'vers', 'ver'], ['mer', 'mere', 'maire'], ['cent', 'sans', 'sang'], ['pain', 'pin'],
     ['cou', 'coup', 'cout'], ['sel', 'selle'], ['foie', 'fois', 'foi'], ['mai', 'mais', 'mes'], ['ou', 'où'],
     ['eau', 'haut', 'oh'], ['vingt', 'vin', 'vain'], ['cinq', 'saint', 'sein'], ['deux', 'de'], ['sept', 'cette', 'set'],
@@ -180,8 +185,8 @@ function normSpeech(s, lang, keepArticle = false) {
    medium – wie streng, aber bei langen Wörtern darf ein Buchstabe abweichen (z. B. Plural-s).
    loose  – ähnlich klingende Wörter und alle Vorschläge des Browsers zählen (frühere Einstellung). */
 const SPEECH_LEVELS = {
-  strict: { label: 'Streng', hint: 'Nur genau das richtige Wort zählt.' },
-  medium: { label: 'Mittel', hint: 'Bei langen Wörtern darf ein Laut abweichen.' },
+  strict: { label: 'Streng', hint: 'Nur genau das Wort zählt, und der Browser muss sich sicher sein. Wird oft abgelehnt.' },
+  medium: { label: 'Mittel', hint: 'Empfohlen: Das Wort muss stimmen („Brad“ statt „bread“ ist falsch). Bei langen Wörtern ist ein kleiner Unterschied ok.' },
   loose: { label: 'Locker', hint: 'Ähnlich klingende Wörter zählen auch.' },
 };
 const STRICT_MIN_CONFIDENCE = 0.5;
@@ -189,7 +194,7 @@ const STRICT_MIN_CONFIDENCE = 0.5;
 const frArticle = (normWithArticle) => (normWithArticle.match(/^(de la|de l|le|la|les|l|un|une|des|du)\s/) || [])[1] || '';
 
 /** Vergleicht das Erkannte mit dem Zielwort. alternatives.best = { t, conf, final } (von listenOnce) */
-function speechMatch(alternatives, word, lang, level = db.settings.speechLevel || 'strict') {
+function speechMatch(alternatives, word, lang, level = db.settings.speechLevel || 'medium') {
   const variants = answerVariants(word.foreign);
   const targets = variants.map((v) => normSpeech(v, lang)).filter(Boolean);
   const best = alternatives.best || { t: alternatives[0] || '', conf: 0, final: false };
@@ -217,8 +222,15 @@ function speechMatch(alternatives, word, lang, level = db.settings.speechLevel |
   const h = normSpeech(heard, lang);
   if (!h) return { ok: false, score: 0, heard: '' };
   const squash = (x) => x.replace(/ /g, '');
+  const contains = (t) => (` ${h} `).includes(` ${t} `) && h.split(' ').length <= t.split(' ').length + 2;
+  // „Mittel“: Plural-Endung ist ok; nur bei langen Wörtern (ab 8 Buchstaben) darf ein Buchstabe abweichen.
+  // So bleibt „butter“ ≠ „better“ und „bread“ ≠ „Brad“.
+  const near = (t) => {
+    const a = squash(h), b = squash(t);
+    return a === b + 's' || a === b + 'es' || (b.length >= 8 && lev(a, b) <= 1);
+  };
   const ok = targets.some((t) => h === t || squash(h) === squash(t)
-    || (level === 'medium' && t.length >= 7 && lev(squash(h), squash(t)) <= 1));
+    || (level === 'medium' && (contains(t) || near(t))));
   const score = Math.max(0, ...targets.map((t) => similarity(h, t)));
   if (!ok) return { ok: false, score, heard };
 
@@ -318,7 +330,7 @@ function parseVocab(text, opts = {}) {
 
 /* ---------------- Speicher ---------------- */
 const STORE_KEY = 'vokabelwelt.v1';
-const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '', speechLevel: 'strict' };
+const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '', speechLevel: 'medium' };
 let db = { sets: [], settings: structuredClone(DEFAULT_SETTINGS) };
 
 function loadDB() {
@@ -327,6 +339,7 @@ function loadDB() {
     if (!raw) return;
     const d = JSON.parse(raw);
     db = { ...db, ...d, settings: { ...structuredClone(DEFAULT_SETTINGS), ...(d.settings || {}) } };
+    if (!db.settings.speechLevelChosen) db.settings.speechLevel = 'medium';
     db.sets = (db.sets || []).filter((s) => s && Array.isArray(s.words));
     db.sets.forEach((s) => {
       s.words.forEach((w) => { if (w.picStatus === 'pending') w.picStatus = 'stale'; });

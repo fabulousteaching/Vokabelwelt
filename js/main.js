@@ -143,7 +143,7 @@ const actions = {
 
   /* Einstellungen */
   'set-speech-level': (el) => {
-    db.settings.speechLevel = el.dataset.level; saveDB();
+    db.settings.speechLevel = el.dataset.level; db.settings.speechLevelChosen = true; saveDB();
     $$('[data-action="set-speech-level"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.level === db.settings.speechLevel)));
     const h = $('#speech-level-hint');
     if (h) h.textContent = SPEECH_LEVELS[db.settings.speechLevel].hint;

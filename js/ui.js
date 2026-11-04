@@ -867,9 +867,9 @@ function openSettings() {
       <label class="switch"><input type="checkbox" id="set-autospeak" ${s.autoSpeak ? 'checked' : ''}><span>Wörter automatisch vorlesen</span></label>
       <div class="field"><span class="label">Aussprache bewerten</span>
         <div class="seg" role="group" aria-label="Wie streng die Aussprache bewertet wird">
-          ${Object.entries(SPEECH_LEVELS).map(([k, v]) => `<button type="button" class="seg-btn" data-action="set-speech-level" data-level="${k}" aria-pressed="${(s.speechLevel || 'strict') === k}">${v.label}</button>`).join('')}
+          ${Object.entries(SPEECH_LEVELS).map(([k, v]) => `<button type="button" class="seg-btn" data-action="set-speech-level" data-level="${k}" aria-pressed="${(s.speechLevel || 'medium') === k}">${v.label}</button>`).join('')}
         </div>
-        <p class="muted small" id="speech-level-hint">${SPEECH_LEVELS[s.speechLevel || 'strict'].hint}</p>
+        <p class="muted small" id="speech-level-hint">${SPEECH_LEVELS[s.speechLevel || 'medium'].hint}</p>
       </div>
       <div class="field"><span class="label">Englische Aussprache</span>
         <div class="seg" role="group" aria-label="Englische Aussprache">
