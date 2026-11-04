@@ -476,7 +476,7 @@ function speakZone(set, w) {
     <button class="btn ghost" data-action="speak-hear" data-slow="1">${icon('snail')} Langsam</button>`;
   if (speakM.fallback) {
     const why = speakM.reason === 'unsupported'
-      ? 'Dieser Browser kann leider keine Sprache erkennen (am besten klappt es mit Chrome, Edge oder Safari).'
+      ? esc(micErrorText('not-supported', set.lang))
       : speakM.reason === 'browser' ? 'Dieser Browser (Brave oder Opera) hat keine Spracherkennung. Mit Chrome, Edge oder Safari klappt es.'
         : speakM.reason === 'chosen' ? 'Du übst ohne Mikrofon.'
           : esc(micErrorText(speakM.reason, set.lang));

@@ -881,7 +881,7 @@ function openSettings() {
              <div class="row"><button type="button" class="btn small secondary" data-action="mic-test">${icon('mic')} Mikrofon testen</button></div>
              <div class="mic-level big" id="mic-test-level" aria-hidden="true"><span></span></div>
              <p class="small" id="mic-test-out" aria-live="polite">Tippe auf „Mikrofon testen“ und sag ein Wort. Der Balken sollte sich beim Sprechen bewegen.</p>`
-          : `<p class="muted small">${speechBrowserMissing ? 'Dieser Browser (Brave oder Opera) hat keine Spracherkennung.' : 'Dieser Browser kann keine Sprache erkennen.'} Am besten Chrome, Edge oder Safari benutzen.</p>`}
+          : `<p class="muted small">${speechBrowserMissing ? 'Dieser Browser (Brave oder Opera) hat keine Spracherkennung. Am besten Chrome, Edge oder Safari benutzen.' : esc(micErrorText('not-supported', 'en'))}</p>`}
       </div>
       <hr>
       <p class="muted small">Alle Vokabeln und Ergebnisse werden nur in diesem Browser gespeichert.</p>

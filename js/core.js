@@ -793,6 +793,9 @@ const sfx = {
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 const listening = { rec: null };
 const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// Chrome, Firefox & Co. auf iPhone/iPad nutzen Apples Technik; Spracherkennung klappt dort zuverlässig nur in Safari.
+const isIOSOtherBrowser = isAppleMobile && /CriOS|FxiOS|EdgiOS|OPiOS|GSA\//i.test(navigator.userAgent);
+const bestBrowsers = () => (isAppleMobile ? 'Safari' : 'Chrome, Edge oder Safari');
 // Diese Browser haben die Schnittstelle, aber keinen Erkennungsdienst dahinter (Fehler „network“).
 const speechBrowserMissing = !!navigator.brave || /OPR\/|Opera/i.test(navigator.userAgent);
 const canListen = () => !!SpeechRec && !speechBrowserMissing;
@@ -918,7 +921,7 @@ function silenceHelp(peak) {
       + (win ? ' Unter Windows: Einstellungen → Datenschutz und Sicherheit → Mikrofon → „Desktop-Apps Zugriff erlauben“ einschalten.' : '')
       + (mac ? ' Am Mac: Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon → deinen Browser einschalten.' : '');
   }
-  return 'Das Mikrofon hört dich, aber die Spracherkennung liefert keinen Text. Sie braucht Internet und ist in manchen Schulnetzen gesperrt. Probiere ein anderes Netz oder einen anderen Browser (Chrome, Edge oder Safari).';
+  return `Das Mikrofon hört dich, aber die Spracherkennung liefert keinen Text. Sie braucht Internet und ist in manchen Schulnetzen gesperrt. Probiere ein anderes Netz oder einen anderen Browser (${bestBrowsers()}).`;
 }
 
 /** Verständliche Erklärung zu den Fehlercodes der Spracherkennung */
@@ -931,19 +934,19 @@ function micErrorText(code, lang) {
     case 'service-not-allowed':
       return isAppleMobile
         ? 'Auf iPad und iPhone muss unter Einstellungen → Allgemein → Tastatur die Diktierfunktion eingeschaltet sein. Danach die Seite neu laden.'
-        : 'Dieser Browser erlaubt hier keine Spracherkennung. Nimm Chrome, Edge oder Safari.';
+        : `Dieser Browser erlaubt hier keine Spracherkennung. Nimm ${bestBrowsers()}.`;
     case 'network':
-      return 'Der Spracherkennungsdienst des Browsers ist nicht erreichbar. Er braucht Internet und ist in manchen Schulnetzen gesperrt. Brave, Opera und Vivaldi haben keinen solchen Dienst – nimm Chrome, Edge oder Safari.';
+      return `Der Spracherkennungsdienst des Browsers ist nicht erreichbar. Er braucht Internet und ist in manchen Schulnetzen gesperrt. ${isAppleMobile ? 'Auf iPhone und iPad klappt es am besten in Safari.' : 'Brave, Opera und Vivaldi haben keinen solchen Dienst – nimm Chrome, Edge oder Safari.'}`;
     case 'audio-capture':
       return 'Es wurde kein Mikrofon gefunden. Ist eins angeschlossen und in den Einstellungen des Geräts für den Browser erlaubt?';
     case 'language-not-supported':
-      return `Dieser Browser kann ${LANGS[lang]?.name || 'diese Sprache'} nicht erkennen. Nimm Chrome, Edge oder Safari.`;
+      return `Dieser Browser kann ${LANGS[lang]?.name || 'diese Sprache'} nicht erkennen. Nimm ${bestBrowsers()}.`;
     case 'busy':
       return 'Das Mikrofon war noch belegt. Versuch es gleich noch einmal.';
     case 'not-supported':
-      return 'Dieser Browser kann keine Sprache erkennen. Nimm Chrome, Edge oder Safari.';
+      return isIOSOtherBrowser ? 'Auf iPhone und iPad klappt die Spracherkennung nur in Safari. Öffne Vokabelwelt bitte in Safari.' : `Dieser Browser kann keine Sprache erkennen. Nimm ${bestBrowsers()}.`;
     default:
-      return 'Versuch es noch einmal. Wenn es weiter nicht klappt, nimm Chrome, Edge oder Safari.';
+      return isIOSOtherBrowser ? 'Auf iPhone und iPad klappt die Spracherkennung am zuverlässigsten in Safari. Öffne Vokabelwelt bitte in Safari.' : `Versuch es noch einmal. Wenn es weiter nicht klappt, nimm ${bestBrowsers()}.`;
   }
 }
 
