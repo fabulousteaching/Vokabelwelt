@@ -187,7 +187,8 @@ function startMatch(set, variant) {
     return true;
   });
   pool = shuffle(pool);
-  const nR = Math.max(1, Math.ceil(pool.length / 6));
+  const perRound = variant === 'pic' ? 5 : 6; // Bilder größer zeigen → weniger pro Runde
+  const nR = Math.max(1, Math.ceil(pool.length / perRound));
   const size = Math.ceil(pool.length / nR);
   match.rounds = [];
   for (let i = 0; i < pool.length; i += size) match.rounds.push(pool.slice(i, i + size).map((w) => w.id));

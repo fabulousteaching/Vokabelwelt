@@ -74,14 +74,13 @@ window.PICTURE_DATA = `
 🍿|popcorn|pop-corn|Popcorn
 🍮|pudding,dessert|dessert,flan|Pudding,Nachtisch,Nachspeise
 🥛|milk,glass of milk|lait|Milch
-☕|coffee,cup,mug|café,tasse|Kaffee,Tasse
+☕|coffee,cup of coffee|café|Kaffee
 🍵|tea|thé|Tee
 🧃|juice|jus,jus de fruit|Saft
 💧|water|eau|Wasser
-🥤|lemonade,soft drink,drink,to drink|limonade,soda,boisson,boire|Limonade,Limo,Getränk,trinken
+🥤|lemonade,soft drink,fizzy drink|limonade,soda|Limonade,Limo
 🧂|salt|sel|Salz
-🍽️|plate,meal,dinner,lunch,eat,to eat|assiette,repas,dîner,déjeuner,manger|Teller,Mahlzeit,Abendessen,Mittagessen,essen
-🥐|breakfast|petit-déjeuner,petit déjeuner|Frühstück
+🍽️|plate|assiette|Teller
 🍴|fork,cutlery|fourchette,couverts|Gabel,Besteck
 🥄|spoon|cuillère,cuiller|Löffel
 🔪|knife|couteau|Messer
@@ -154,7 +153,7 @@ window.PICTURE_DATA = `
 🦇|bat|chauve-souris|Fledermaus
 🦖|dinosaur|dinosaure|Dinosaurier,Dino
 🐉|dragon|dragon|Drache
-🐾|pet,pets,paw|animal domestique,animaux domestiques,patte|Haustier,Haustiere,Pfote
+🐾|paw|patte|Pfote
 👁️|eye|œil,oeil|Auge
 👀|eyes,look,to look,see,to see|yeux,regarder,voir|Augen,schauen,sehen,gucken
 👂|ear,listen,to listen,hear,to hear|oreille,écouter,entendre|Ohr,zuhören,hören
@@ -172,17 +171,17 @@ window.PICTURE_DATA = `
 💇|hair|cheveux|Haare
 🙂|face|visage|Gesicht
 👶|baby|bébé|Baby
-👦|boy,brother|garçon,frère|Junge,Bruder
-👧|girl,sister|fille,sœur,soeur|Mädchen,Schwester
+👦|boy|garçon|Junge
+👧|girl|fille|Mädchen
 👨|man|homme|Mann
 👩|woman|femme|Frau
 👴|grandfather,grandpa,granddad|grand-père,papi,papy|Großvater,Opa
 👵|grandmother,grandma,granny|grand-mère,mamie|Großmutter,Oma
-👨‍👩‍👧‍👦|family,parents|famille,parents|Familie,Eltern
+👨‍👩‍👧‍👦|family|famille|Familie
 👩‍👧|mother,mum,mom,mummy|mère,maman|Mutter,Mama
 👨‍👦|father,dad,daddy|père,papa|Vater,Papa
 🧑‍🤝‍🧑|friend,friends|ami,amie,amis,copain,copine|Freund,Freundin,Freunde
-👑|crown,king,queen|couronne,roi,reine|Krone,König,Königin
+👑|crown|couronne|Krone
 👸|princess|princesse|Prinzessin
 🤴|prince|prince|Prinz
 🧑‍🏫|teacher|professeur,prof,enseignant,enseignante,maître,maîtresse|Lehrer,Lehrerin,Lehrkraft
@@ -195,7 +194,6 @@ window.PICTURE_DATA = `
 🧑‍🚀|astronaut|astronaute|Astronaut,Astronautin
 👷|builder,worker|ouvrier,ouvrière|Bauarbeiter,Arbeiter
 🧑‍🎨|artist,painter|artiste,peintre|Künstler,Künstlerin,Maler,Malerin
-🧑‍💻|work,to work,job|travailler,travail|arbeiten,Arbeit,Beruf
 🧙|wizard,witch,magician|sorcier,sorcière,magicien|Zauberer,Hexe
 🧚|fairy|fée|Fee
 🦸|superhero,hero|super-héros,héros|Superheld,Held
@@ -242,19 +240,18 @@ window.PICTURE_DATA = `
 📖|book,read,to read,reading|livre,lire,lecture|Buch,lesen,Lesen
 📓|exercise book,notebook|cahier|Heft,Schulheft
 🗒️|notepad|bloc-notes|Notizblock,Block
-📝|homework,note,notes|devoirs,note|Hausaufgaben,Hausaufgabe,Notiz
+📝|homework|devoirs|Hausaufgaben,Hausaufgabe
 ✍️|write,to write,writing|écrire|schreiben,Schreiben
 🧮|maths,math,mathematics|maths,mathématiques|Mathe,Mathematik
 📎|paper clip|trombone|Büroklammer
 📌|pin,drawing pin|punaise|Pinnnadel,Reißzwecke
 🏫|school|école,collège|Schule
-🎓|learn,to learn|apprendre|lernen
 🖥️|computer|ordinateur|Computer,Rechner
 💻|laptop|ordinateur portable|Laptop
 ⌨️|keyboard|clavier|Tastatur
 📱|mobile phone,mobile,phone,smartphone,mobile|portable,téléphone portable,smartphone|Handy,Smartphone,Mobiltelefon
 ☎️|telephone|téléphone|Telefon
-🗺️|map|carte|Landkarte,Karte
+🗺️|map|carte géographique|Landkarte
 🌍|world,earth|monde,terre|Welt,Erde
 🧪|experiment,science|expérience,sciences|Experiment,Naturwissenschaft
 🔬|microscope,biology|microscope,biologie|Mikroskop,Biologie
@@ -273,14 +270,14 @@ window.PICTURE_DATA = `
 📺|television,tv,telly|télévision,télé|Fernseher,Fernsehen
 📻|radio|radio|Radio
 🎧|headphones|casque,écouteurs|Kopfhörer
-🎮|video game,video games,computer game,play,to play|jeu vidéo,jeux vidéo,jouer|Videospiel,Computerspiel,spielen
-🧸|teddy,teddy bear,toy|nounours,ours en peluche,jouet|Teddy,Teddybär,Kuscheltier,Spielzeug
+🎮|video game,video games,computer game|jeu vidéo,jeux vidéo|Videospiel,Computerspiel
+🧸|teddy,teddy bear|nounours,ours en peluche|Teddy,Teddybär,Kuscheltier
 🪁|kite|cerf-volant|Drachen
 🧩|puzzle|puzzle|Puzzle
-🎲|dice,game|dé,dés,jeu|Würfel,Spiel
+🎲|dice|dé,dés|Würfel
 ♟️|chess|échecs|Schach
 🃏|cards,playing cards|cartes|Spielkarten
-🎁|present,gift,give,to give|cadeau,donner|Geschenk,schenken,geben
+🎁|present,gift|cadeau|Geschenk
 🎈|balloon|ballon de baudruche|Luftballon
 🎉|party,celebrate|fête,faire la fête|Party,Fest,Feier,feiern
 🕯️|candle|bougie|Kerze
@@ -292,17 +289,17 @@ window.PICTURE_DATA = `
 🪑|chair|chaise|Stuhl
 🚽|toilet,loo|toilettes|Toilette,Klo
 🛁|bath,bathtub|baignoire,bain|Badewanne
-🚿|shower,wash,to wash|douche,laver,se laver|Dusche,duschen,waschen
+🚿|shower,to have a shower|douche,se doucher|Dusche,duschen
 🪥|toothbrush,brush your teeth|brosse à dents|Zahnbürste,Zähne putzen
 🧼|soap|savon|Seife
 🪞|mirror|miroir|Spiegel
-💡|lamp,light,idea|lampe,lumière,idée|Lampe,Licht,Idee
-🛒|shopping trolley,buy,to buy|caddie,acheter|Einkaufswagen,kaufen
+💡|light bulb,lamp,idea|ampoule,lampe,idée|Glühbirne,Lampe,Idee
+🛒|shopping trolley,shopping cart|caddie|Einkaufswagen
 🛍️|shopping,go shopping|faire du shopping,faire les courses,courses|einkaufen,shoppen,Einkaufen
 🧺|basket|panier|Korb
 🗑️|bin,rubbish bin,dustbin|poubelle|Mülleimer,Abfalleimer
-🧹|broom,clean,to clean|balai,nettoyer|Besen,putzen,aufräumen
-🏠|house,home,live,to live|maison,habiter,vivre|Haus,Zuhause,wohnen,leben
+🧹|broom|balai|Besen
+🏠|house,home|maison|Haus,Zuhause
 🏡|garden|jardin|Garten
 🏢|office,building|bureau,immeuble|Büro,Gebäude
 🏥|hospital|hôpital|Krankenhaus
@@ -318,7 +315,7 @@ window.PICTURE_DATA = `
 🏔️|mountains|montagnes|Gebirge,Berge
 🌋|volcano|volcan|Vulkan
 ⛺|tent,camping,campsite|tente,camping|Zelt,Camping,Zeltplatz,Campingplatz
-🏞️|park,river,lake|parc,rivière,fleuve,lac|Park,Fluss,See
+🏞️|park|parc|Park
 🌳|tree|arbre|Baum
 🌲|forest,wood,woods,fir tree|forêt,bois,sapin|Wald,Tanne
 🌴|palm tree|palmier|Palme
@@ -336,7 +333,7 @@ window.PICTURE_DATA = `
 🌙|moon,night|lune,nuit|Mond,Nacht
 ⭐|star|étoile|Stern
 ☀️|sun,sunny|soleil,ensoleillé|Sonne,sonnig
-😎|summer,cool|été,cool|Sommer,cool
+😎|cool|cool|cool
 ☁️|cloud,cloudy|nuage,nuageux|Wolke,bewölkt,wolkig
 🌧️|rain,rainy|pluie,pluvieux|Regen,regnerisch
 ⛈️|storm,thunderstorm|orage,tempête|Gewitter,Sturm
@@ -346,7 +343,8 @@ window.PICTURE_DATA = `
 🌬️|wind,windy|vent|Wind,windig
 🌫️|fog,foggy|brouillard|Nebel,neblig
 🔥|fire|feu|Feuer
-🌡️|temperature,weather|température,météo,temps|Temperatur,Wetter
+🌡️|temperature,thermometer|température,thermomètre|Temperatur,Thermometer
+⛅|weather|météo|Wetter
 🚗|car|voiture|Auto,Wagen
 🚌|bus|bus|Bus
 🚲|bike,bicycle|vélo,bicyclette|Fahrrad,Rad
@@ -373,7 +371,7 @@ window.PICTURE_DATA = `
 🌉|bridge|pont|Brücke
 🚉|station,railway station|gare|Bahnhof
 ⛽|petrol station|station-service|Tankstelle
-🧳|suitcase,travel,to travel|valise,voyager|Koffer,reisen
+🧳|suitcase|valise|Koffer
 ⚽|football,soccer,ball|football,foot,ballon,balle|Fußball,Ball
 🏀|basketball|basket,basket-ball|Basketball
 🏐|volleyball|volley,volley-ball|Volleyball
@@ -387,7 +385,7 @@ window.PICTURE_DATA = `
 🎿|skiing,ski,to ski|ski,faire du ski|Skifahren,Ski,Ski fahren
 🏂|snowboard,snowboarding|snowboard|Snowboard
 🛹|skateboard|skate,skateboard,planche à roulettes|Skateboard
-🏊|swimming,swim,to swim,swimming pool|natation,nager,piscine|Schwimmen,schwimmen,Schwimmbad
+🏊|swimming,swim,to swim|natation,nager|Schwimmen,schwimmen
 🚴|cycling,ride a bike,to ride a bike|faire du vélo,cyclisme|Radfahren,Rad fahren
 🏃|running,run,to run,jogging|courir,course|laufen,rennen,joggen,Laufen
 🚶|walk,to walk,go for a walk|marcher,se promener,promenade|gehen,spazieren gehen,Spaziergang
@@ -402,22 +400,21 @@ window.PICTURE_DATA = `
 🎻|violin|violon|Geige
 🎺|trumpet|trompette|Trompete
 🏋️|sport,sports|sport|Sport
-🏆|cup,trophy,win,to win|coupe,trophée,gagner|Pokal,gewinnen
+🏆|trophy,win,to win|coupe,trophée,gagner|Pokal,gewinnen
 🥇|medal,winner|médaille,gagnant|Medaille,Sieger,Gewinner
 🎬|film,movie,cinema|film,cinéma|Film,Kino
 🎪|circus|cirque|Zirkus
 🎡|funfair|fête foraine|Jahrmarkt,Kirmes
 🗣️|speak,to speak,talk,to talk|parler|sprechen,reden
 🙋|ask,to ask,question|demander,question|fragen,Frage
-💬|answer,to answer|répondre,réponse|antworten,Antwort
 🤔|think,to think|penser,réfléchir|denken,nachdenken
 😴|sleep,to sleep,tired|dormir,fatigué,fatiguée|schlafen,müde
-🔍|find,to find,look for,to look for,search|trouver,chercher|finden,suchen
+🔍|look for,to look for,search,to search|chercher|suchen
 💰|money|argent|Geld
 💶|euro,euros|euro,euros|Euro
 🪙|coin|pièce|Münze
 👋|hello,hi,goodbye,bye|bonjour,salut,au revoir|Hallo,Tschüss,Auf Wiedersehen
-🙏|please,thank you,thanks|s'il te plaît,s'il vous plaît,merci|bitte,danke
+🙏|thank you,thanks|merci|danke
 👍|yes,good,ok,okay|oui,bien,bon,d'accord|ja,gut,okay
 👎|no,bad|non,mauvais,mauvaise|nein,schlecht
 😊|happy,glad|heureux,heureuse,content,contente|glücklich,froh

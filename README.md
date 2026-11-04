@@ -33,11 +33,26 @@ Besonderheiten beim Prüfen:
 
 Für jede Karte wird automatisch ein Bild gesucht. Oben bei „Deine Karten“ wählst du die Bildquelle:
 
-- **Fotos**: Leitbilder aus Wikipedia (frei lizenziert, Quelle steht im Bild-Dialog).
-- **KI-Bilder**: werden von einer KI gemalt (Dienst: pollinations.ai, ohne Anmeldung). Das ist experimentell und dauert ein paar Sekunden pro Bild. Ist der Dienst nicht erreichbar, werden Fotos oder Emojis benutzt.
-- **Emojis**: ein eingebautes Bildwörterbuch mit über 400 Schulwörtern. Funktioniert auch ohne Internet.
+- **Piktogramme** (Standard): einfache, einheitlich gezeichnete Bilder von [ARASAAC](https://arasaac.org). Sie sind dafür gemacht, eindeutig zu sein, und es gibt sie auch für Verben („schwimmen“), Gefühle („glücklich“) und Eigenschaften. Gesucht wird mit dem deutschen **und** dem fremdsprachigen Wort. Passt ein Piktogramm zu beiden, wird es bevorzugt – bei „bat – Fledermaus“ also das Tier und nicht der Schläger.
+- **Fotos**: Leitbilder aus Wikipedia. Nur für Nomen; bei Verben und Adjektiven zeigen Fotos oft etwas anderes.
+- **KI-Bilder**: werden von einer KI gemalt (Dienst: pollinations.ai, ohne Anmeldung). Experimentell und langsam.
+- **Emojis**: ein eingebautes Bildwörterbuch mit rund 400 Schulwörtern. Funktioniert auch ohne Internet.
 
-Ein Klick auf eine Karte öffnet den Bild-Dialog. Dort kannst du ein anderes Foto suchen, ein KI-Bild malen lassen, ein Emoji wählen oder ein eigenes Foto hochladen (auch mit der Tablet-Kamera oder per Strg+V).
+Grundsatz: lieber kein Bild als ein missverständliches.
+
+### Bilder prüfen (empfohlen vor dem Teilen)
+
+„Bilder prüfen“ zeigt alle Wörter untereinander, daneben mehrere Bildvorschläge (Piktogramme, Emoji, Foto). Ein Tipp auf ein Bild übernimmt es. Lässt sich ein Wort nicht gut zeigen (z. B. „usually“, „at the weekend“), wähle **Kein Bild**: Das Wort kommt dann nur bei „Englisch ↔ Deutsch“ dran, nicht beim Bilder-Zuordnen. Die Auswahl wird im Teilen-Link mitgegeben, die Kinder sehen also genau deine Bilder.
+
+Tipps für eindeutige Bilder:
+
+- Schreib die deutsche Übersetzung so eindeutig wie möglich, nur **eine** Bedeutung pro Zeile („bat – Fledermaus“, nicht „bat – Fledermaus, Schläger“). Die Bildsuche richtet sich nach dem deutschen Wort.
+- Nomen mit Artikel schreiben („der Hund“), dann erkennt Vokabelwelt, dass es ein Nomen ist.
+- Für alles andere: Karte antippen → „Mehr …“ → eigenes Suchwort, Emoji oder eigenes Foto.
+
+Ein Klick auf eine Karte öffnet den Bild-Dialog mit allen Quellen, auch zum Hochladen eigener Fotos (Tablet-Kamera oder Strg+V).
+
+Piktogramme: Sergio Palao, ARASAAC (https://arasaac.org), Eigentum der Regierung von Aragón, Lizenz CC BY-NC-SA. Die Nutzung ist für nicht-kommerzielle Zwecke wie den Unterricht erlaubt.
 
 ## Mit der Klasse teilen
 
@@ -48,7 +63,7 @@ Alles wird nur im Browser gespeichert (localStorage). Es gibt keinen Server und 
 ## Online stellen (GitHub Pages)
 
 1. Im Repository auf **Settings → Pages** gehen.
-2. Bei „Build and deployment“ **Deploy from a branch** wählen, Branch **main** (bzw. den Standard-Branch) und Ordner **/ (root)**.
+2. Bei „Build and deployment“ **Deploy from a branch** wählen, den Branch mit Vokabelwelt (z. B. `claude/vokabelwelt-app`) und Ordner **/ (root)**.
 3. Nach ein bis zwei Minuten ist Vokabelwelt unter `https://<benutzername>.github.io/<repository>/` erreichbar.
 
 Man kann `index.html` auch einfach per Doppelklick öffnen. Für Spracherkennung und Teilen-Links ist die Online-Version aber besser.

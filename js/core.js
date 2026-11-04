@@ -287,7 +287,17 @@ function loadDB() {
     const d = JSON.parse(raw);
     db = { ...db, ...d, settings: { ...structuredClone(DEFAULT_SETTINGS), ...(d.settings || {}) } };
     db.sets = (db.sets || []).filter((s) => s && Array.isArray(s.words));
-    db.sets.forEach((s) => s.words.forEach((w) => { if (w.picStatus === 'pending') w.picStatus = 'stale'; }));
+    db.sets.forEach((s) => {
+      s.words.forEach((w) => { if (w.picStatus === 'pending') w.picStatus = 'stale'; });
+      // Ältere Portionen: Fotos waren Standard. Jetzt sind Piktogramme Standard (eindeutiger).
+      if (!s.picVersion) {
+        s.picVersion = 2;
+        if (s.picStyle === 'photo' || !s.picStyle) {
+          s.picStyle = 'picto';
+          s.words.forEach((w) => { if (!(w.pic && w.pic.manual)) w.picStatus = 'stale'; });
+        }
+      }
+    });
   } catch { /* Speicher nicht verfügbar */ }
 }
 let saveWarned = false;
@@ -306,9 +316,9 @@ function saveNow() {
 const saveDB = debounce(saveNow, 250);
 const getSet = (id) => db.sets.find((s) => s.id === id);
 
-function newSet({ name, lang, rows, picStyle = 'photo' }) {
+function newSet({ name, lang, rows, picStyle = 'picto' }) {
   const set = {
-    id: uid(), name, lang, picStyle, created: Date.now(), updated: Date.now(),
+    id: uid(), name, lang, picStyle, picVersion: 2, created: Date.now(), updated: Date.now(),
     words: rows.map((r) => ({ id: uid(), foreign: r.foreign, german: r.german, pic: r.pic || null, picStatus: r.pic ? 'done' : 'stale' })),
     progress: {},
   };
@@ -399,7 +409,7 @@ function isNounish(word, lang) {
 }
 
 /* --- Wikipedia / Wikimedia (CORS mit origin=*) --- */
-const net = { wikiDown: false, aiDown: false, aiFails: 0 };
+const net = { wikiDown: false, aiDown: false, aiFails: 0, arasaacDown: false, arasaacBase: 0 };
 const wikiCache = new Map();
 const BAD_IMAGE = /(map|karte|locator|location|flag|flagge|logo|wappen|coat[_ ]of[_ ]arms|blason|diagram|signature|unterschrift|icon|symbol|disambig|commons-logo|question_book|ambox)/i;
 
@@ -504,6 +514,67 @@ async function englishTerm(word, lang) {
   return de ? `${de} (${fo})` : fo;
 }
 
+/* --- ARASAAC-Piktogramme: eindeutige, einheitlich gezeichnete Bilder (auch für Verben und Gefühle) ---
+   Piktogramme: Sergio Palao, ARASAAC (https://arasaac.org), Eigentum der Regierung von Aragón, Lizenz CC BY-NC-SA. */
+const ARASAAC_BASES = ['https://api.arasaac.org/v1/pictograms', 'https://api.arasaac.org/api/pictograms'];
+const ARASAAC_CREDIT = { text: 'Piktogramm: Sergio Palao, ARASAAC (CC BY-NC-SA)', url: 'https://arasaac.org' };
+const arasaacImg = (id, size = 500) => `https://static.arasaac.org/pictograms/${id}/${id}_${size}.png`;
+const arasaacCache = new Map();
+
+/** mode: 'bestsearch' (Stichwort passt genau) oder 'search' (ähnliche Stichwörter) */
+function arasaacQuery(locale, text, mode = 'bestsearch') {
+  text = String(text || '').trim();
+  if (!text || net.arasaacDown) return Promise.resolve([]);
+  const key = `${locale}|${mode}|${text.toLowerCase()}`;
+  if (arasaacCache.has(key)) return arasaacCache.get(key);
+  const p = (async () => {
+    for (let i = net.arasaacBase; i < ARASAAC_BASES.length; i++) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 9000);
+      try {
+        const r = await fetch(`${ARASAAC_BASES[i]}/${locale}/${mode}/${encodeURIComponent(text)}`, { signal: ctrl.signal });
+        net.arasaacBase = i;
+        if (!r.ok) return []; // nichts gefunden
+        const data = await r.json();
+        return (Array.isArray(data) ? data : []).filter((x) => x && x._id && !x.sex && !x.violence);
+      } catch { /* nächste Adresse versuchen */ } finally { clearTimeout(timer); }
+    }
+    net.arasaacDown = true;
+    arasaacCache.delete(key);
+    return [];
+  })();
+  arasaacCache.set(key, p);
+  return p;
+}
+
+const toPicto = (x) => ({ kind: 'picto', src: arasaacImg(x._id), title: x.keywords?.[0]?.keyword || '', credit: ARASAAC_CREDIT });
+
+/** Piktogramme für ein Wort. Treffer, die zum deutschen UND zum fremdsprachigen Wort passen,
+ *  kommen zuerst – so wird z. B. bei „bat – Fledermaus“ das Tier gewählt und nicht der Schläger. */
+async function pictoCandidates(word, lang, limit = 8) {
+  const de = core(word.german, 'de'), fo = core(word.foreign, lang);
+  const variants = (t) => [...new Set([t, stripAccents(t)])].filter(Boolean);
+  const gather = async (mode) => {
+    const [deL, foL] = await Promise.all([
+      Promise.all(variants(de).map((t) => arasaacQuery('de', t, mode))).then((a) => a.flat()),
+      Promise.all(variants(fo).map((t) => arasaacQuery(lang, t, mode))).then((a) => a.flat()),
+    ]);
+    const foIds = new Set(foL.map((x) => x._id));
+    return [...deL.filter((x) => foIds.has(x._id)), ...deL, ...foL];
+  };
+  let list = await gather('bestsearch');
+  if (list.length < limit && !net.arasaacDown) list = list.concat(await gather('search'));
+  const seen = new Set();
+  return list.filter((x) => (seen.has(x._id) ? false : seen.add(x._id))).slice(0, limit).map(toPicto);
+}
+
+/** Freie Suche im Bild-Dialog */
+async function pictoSearch(query, lang) {
+  const [a, b, c] = await Promise.all([arasaacQuery('de', query, 'search'), arasaacQuery(lang, query, 'search'), arasaacQuery('en', query, 'search')]);
+  const seen = new Set();
+  return [...a, ...b, ...c].filter((x) => (seen.has(x._id) ? false : seen.add(x._id))).slice(0, 24).map(toPicto);
+}
+
 /* --- KI-Illustrationen (Pollinations, ohne Schlüssel) --- */
 const AI_STYLE = "cute colorful children's book illustration, one single object in the center, plain white background, soft shading, friendly, high quality, no text, no letters";
 function aiUrl(subject, seed) {
@@ -535,17 +606,23 @@ function aiPicture(subject, seed) {
 }
 
 /* --- automatische Bildwahl --- */
+/* Grundsatz: lieber kein Bild als ein missverständliches. Fotos nur für Nomen –
+   bei Verben und Adjektiven zeigen Wikipedia-Fotos oft etwas anderes. */
 async function autoPicture(word, set) {
   const local = localPicture(word, set.lang);
   if (local && (local.kind === 'color' || local.kind === 'number')) return local;
-  if (set.picStyle === 'emoji') return local || (await photoPicture(word, set.lang));
-  if (set.picStyle === 'ai' && !net.aiDown) {
+  const noun = isNounish(word, set.lang);
+  const picto = async () => (await pictoCandidates(word, set.lang, 1))[0] || null;
+  const photo = async () => (noun ? photoPicture(word, set.lang) : null);
+  const style = set.picStyle || 'picto';
+  if (style === 'emoji') return local || (await picto()) || (await photo());
+  if (style === 'photo') return (await photo()) || (await picto()) || local;
+  if (style === 'ai' && !net.aiDown) {
     const subject = await englishTerm(word, set.lang);
     const p = await aiPicture(subject, 7 + (word.id.charCodeAt(0) % 50));
     if (p) return p;
   }
-  if (!isNounish(word, set.lang) && local) return local;
-  return (await photoPicture(word, set.lang)) || local;
+  return (await picto()) || local || (await photo());
 }
 
 const picJobs = new Map(); // setId -> {done, total}
@@ -597,7 +674,7 @@ function picHTML(word, lang, cls = '') {
   if (p.kind === 'emoji') return `<span class="pic pic-emoji ${cls}" role="img" aria-label="${esc(word.german || word.foreign)}"><span>${esc(p.src)}</span></span>`;
   if (p.kind === 'color') return `<span class="pic pic-color ${cls}" role="img" aria-label="${esc(word.german || word.foreign)}"><span style="--swatch:${esc(p.src)}"></span></span>`;
   if (p.kind === 'number') return `<span class="pic pic-number ${cls}" role="img" aria-label="${esc(p.src)}"><span>${esc(p.src)}</span></span>`;
-  return `<span class="pic pic-img ${cls}"><img src="${esc(p.src)}" alt="${esc(word.german || word.foreign)}" data-wid="${esc(word.id)}" draggable="false" decoding="async"></span>`;
+  return `<span class="pic pic-img${p.kind === 'picto' ? ' pic-picto' : ''} ${cls}"><img src="${esc(p.src)}" alt="${esc(word.german || word.foreign)}" data-wid="${esc(word.id)}" draggable="false" decoding="async"></span>`;
 }
 
 document.addEventListener('error', (e) => {
@@ -759,7 +836,8 @@ async function encodeShare(set) {
     w: set.words.map((w) => {
       const row = [w.foreign, w.german];
       const p = w.pic;
-      if (p && p.kind !== 'upload' && p.kind !== 'drawn' && !String(p.src).startsWith('data:')) row.push(p.kind, p.src);
+      if (p && p.kind === 'none') row.push('none', '-');
+      else if (p && p.kind !== 'upload' && p.kind !== 'drawn' && !String(p.src).startsWith('data:')) row.push(p.kind, p.src);
       return row;
     }),
   };
@@ -782,10 +860,11 @@ async function decodeShare(code) {
   } else json = new TextDecoder().decode(bytes);
   const d = JSON.parse(json);
   return {
-    name: String(d.n || 'Vokabeln'), lang: d.l === 'fr' ? 'fr' : 'en', picStyle: ['photo', 'ai', 'emoji'].includes(d.s) ? d.s : 'photo',
+    name: String(d.n || 'Vokabeln'), lang: d.l === 'fr' ? 'fr' : 'en', picStyle: ['picto', 'photo', 'ai', 'emoji'].includes(d.s) ? d.s : 'picto',
     rows: (d.w || []).map((r) => ({
       foreign: String(r[0] || ''), german: String(r[1] || ''),
-      pic: r[2] && r[3] ? { kind: String(r[2]), src: String(r[3]), manual: true } : null,
+      pic: r[2] === 'none' ? { kind: 'none', src: '', manual: true }
+        : r[2] && r[3] ? { kind: String(r[2]), src: String(r[3]), manual: true } : null,
     })),
   };
 }

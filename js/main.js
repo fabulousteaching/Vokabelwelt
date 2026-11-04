@@ -55,6 +55,7 @@ const actions = {
     const style = el.dataset.style;
     set.picStyle = style;
     if (style === 'ai') { net.aiDown = false; net.aiFails = 0; }
+    if (style === 'picto') net.arasaacDown = false;
     if (style === 'photo') net.wikiDown = false;
     saveDB();
     $$('.deck-controls .seg-btn').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.style === style)));
@@ -118,6 +119,27 @@ const actions = {
     el.disabled = false;
   },
   'draw-missing': () => drawMissing(currentSet()),
+  'review-pics': () => { ui.reviewCands = {}; go('pics'); },
+  'review-pick': (el) => {
+    const set = currentSet();
+    const w = set.words.find((x) => x.id === el.dataset.wid);
+    const c = ui.reviewList?.[w?.id]?.[+el.dataset.i];
+    if (!w || !c || el.classList.contains('failed')) return;
+    w.pic = { kind: c.kind, src: c.src, credit: c.credit || null, title: c.title || '', manual: true };
+    w.picStatus = 'done';
+    brokenPics.delete(c.src);
+    saveDB();
+    renderReviewRow(set, w);
+  },
+  'review-none': (el) => {
+    const set = currentSet();
+    const w = set.words.find((x) => x.id === el.dataset.wid);
+    if (!w) return;
+    w.pic = { kind: 'none', src: '', manual: true };
+    w.picStatus = 'done';
+    saveDB();
+    renderReviewRow(set, w);
+  },
 
   /* Einstellungen */
   'set-accent': (el) => {

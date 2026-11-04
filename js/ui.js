@@ -29,6 +29,7 @@ const ICONS = {
   stop: '<rect x="7" y="7" width="10" height="10" rx="2"/>',
   pencil2: '<path d="M3 21l3.5-1 11-11-2.5-2.5-11 11z"/><path d="M14 6.5l2.5-2.5 3.5 3.5-2.5 2.5"/>',
   brush: '<path d="M14.5 4.5l5 5-7.5 7.5-5-5z"/><path d="M7 12c-2 0-4 1.5-4 4.5V20h3.5C9.5 20 11 18 11 16"/>',
+  picto: '<circle cx="12" cy="5.5" r="2.5"/><path d="M12 9v6M7.5 11.5 12 9l4.5 2.5M9 21l3-6 3 6"/>',
   snail: '<path d="M3 18h15a3 3 0 0 0 3-3V9"/><path d="M19 6l1 3 1-3"/><circle cx="10" cy="12" r="5"/><path d="M10 12a1.8 1.8 0 1 1 1.8-1.8"/>',
 };
 const icon = (name, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -50,10 +51,11 @@ const ui = {
   draft: { text: '', lang: 'en', langManual: false, name: '', swap: false },
   confirmDelete: null,
   modal: null,
-  picTab: 'photo',
+  picTab: 'picto',
+  reviewCands: {},
 };
 const currentSet = () => getSet(ui.setId);
-const MODE_NAMES = { cards: 'Lernkarten', match: 'Zuordnen', speak: 'Aussprechen', test: 'Test' };
+const MODE_NAMES = { cards: 'Lernkarten', match: 'Zuordnen', speak: 'Aussprechen', test: 'Test', pics: 'Bilder prüfen' };
 
 /* ---------------- Rahmen ---------------- */
 function renderShell() {
@@ -93,6 +95,7 @@ function render() {
     case 'match': renderMatch(); break;
     case 'speak': renderSpeak(); break;
     case 'test': renderTest(); break;
+    case 'pics': v.innerHTML = viewPics(set); loadReview(set); break;
     default: v.innerHTML = viewHome(); bindHome();
   }
 }
@@ -380,13 +383,15 @@ function viewSet(set) {
         <div class="deck-controls">
           <span class="label-inline">Bilder:</span>
           <div class="seg small" role="group" aria-label="Bildquelle">
-            ${[['photo', 'camera', 'Fotos'], ['ai', 'sparkle', 'KI-Bilder'], ['emoji', 'smile', 'Emojis']].map(([k, ic, t]) => `<button class="seg-btn" data-action="pic-style" data-style="${k}" aria-pressed="${set.picStyle === k}">${icon(ic)}<span>${t}</span></button>`).join('')}
+            ${[['picto', 'picto', 'Piktogramme'], ['photo', 'camera', 'Fotos'], ['ai', 'sparkle', 'KI-Bilder'], ['emoji', 'smile', 'Emojis']].map(([k, ic, t]) => `<button class="seg-btn" data-action="pic-style" data-style="${k}" aria-pressed="${set.picStyle === k}">${icon(ic)}<span>${t}</span></button>`).join('')}
           </div>
+          <button class="btn small primary" data-action="review-pics">${icon('check')} Bilder prüfen</button>
           ${claudeSample ? `<button class="btn small secondary" data-action="draw-missing">${icon('brush')} Fehlende Bilder zeichnen</button>` : ''}
         </div>
       </div>
       <p class="pic-status" id="pic-status">${picStatusText(set)}</p>
       <div class="deck-grid" id="deck-grid">${set.words.map((w) => deckCard(set, w)).join('')}</div>
+      <p class="credits" id="credits">${creditsText(set)}</p>
     </section>
   </section>`;
 }
@@ -402,15 +407,24 @@ function deckCard(set, w) {
 function picStatusText(set) {
   const job = picJobs.get(set.id);
   if (job) return `<span class="spinner" aria-hidden="true"></span> Bilder werden gesucht … ${job.done} von ${job.total}`;
+  if (set.picStyle === 'picto' && net.arasaacDown) return 'Die Piktogramm-Sammlung ist gerade nicht erreichbar – deshalb siehst du Emojis. Tippe auf eine Karte, um ein Bild selbst zu wählen.';
   if (set.picStyle === 'ai' && net.aiDown) return 'Der KI-Bilderdienst antwortet gerade nicht. Stattdessen siehst du Fotos oder Emojis. Tippe auf eine Karte, um ein Bild selbst zu wählen.';
   if (set.picStyle !== 'emoji' && net.wikiDown) return 'Keine Verbindung zu Wikipedia – deshalb gibt es Emojis statt Fotos. Tippe auf eine Karte, um ein eigenes Bild zu wählen.';
-  return 'Tippe auf eine Karte, um ihr Bild zu ändern.';
+  return 'Tipp: Prüfe die Bilder einmal mit „Bilder prüfen“, bevor du die Portion mit der Klasse teilst. Wörter ohne eindeutiges Bild lässt du einfach ohne Bild.';
+}
+
+function creditsText(set) {
+  return set.words.some((w) => w.pic?.kind === 'picto')
+    ? 'Piktogramme: Sergio Palao, <a href="https://arasaac.org" target="_blank" rel="noopener">ARASAAC</a>, Eigentum der Regierung von Aragón, Lizenz CC BY-NC-SA.'
+    : '';
 }
 
 function refreshDeck(set, word) {
   if (ui.view === 'set' && ui.setId === set.id) {
     const st = $('#pic-status');
     if (st) st.innerHTML = picStatusText(set);
+    const cr = $('#credits');
+    if (cr) cr.innerHTML = creditsText(set);
     if (word) {
       const el = $(`.deck-card[data-wid="${word.id}"]`);
       if (el) el.outerHTML = deckCard(set, word);
@@ -419,6 +433,7 @@ function refreshDeck(set, word) {
       if (grid) grid.innerHTML = set.words.map((w) => deckCard(set, w)).join('');
     }
   }
+  if (ui.view === 'pics' && ui.setId === set.id && word) renderReviewRow(set, word);
   if (ui.modal?.wid && word && ui.modal.wid === word.id) refreshPicDialogHead(set, word);
 }
 
@@ -489,7 +504,7 @@ function openPicDialog(set, word) {
       <button type="button" class="icon-btn" data-action="close-modal" aria-label="Schließen">${icon('x')}</button>
     </header>
     <div class="tabs" role="tablist">
-      ${[['photo', 'camera', 'Fotos'], ['ai', 'sparkle', 'KI-Bild'], ...(claudeSample ? [['draw', 'brush', 'Zeichnen']] : []), ['emoji', 'smile', 'Emoji'], ['own', 'upload', 'Eigenes Bild']]
+      ${[['picto', 'picto', 'Piktogramm'], ['photo', 'camera', 'Fotos'], ['ai', 'sparkle', 'KI-Bild'], ...(claudeSample ? [['draw', 'brush', 'Zeichnen']] : []), ['emoji', 'smile', 'Emoji'], ['own', 'upload', 'Eigenes Bild']]
         .map(([k, ic, t]) => `<button type="button" role="tab" class="tab" data-action="pic-tab" data-tab="${k}" aria-selected="${ui.picTab === k}">${icon(ic)}<span>${t}</span></button>`).join('')}
     </div>
     <div class="pd-body" id="pd-body"></div>
@@ -499,7 +514,7 @@ function openPicDialog(set, word) {
       <button type="button" class="btn primary" data-action="close-modal">Fertig</button>
     </footer>`, { cls: 'wide pic-dialog', label: `Bild für ${word.foreign}` });
   ui.modal.wid = word.id;
-  if (!claudeSample && ui.picTab === 'draw') ui.picTab = 'photo';
+  if (!claudeSample && ui.picTab === 'draw') ui.picTab = 'picto';
   refreshPicDialogHead(set, word);
   renderPicTab(set, word);
 }
@@ -524,7 +539,7 @@ function choosePic(set, word, pic) {
 }
 
 function candHTML(c, kind) {
-  return `<button type="button" class="cand" data-action="pic-choose" data-kind="${kind}" data-src="${esc(c.src)}" data-credit="${esc(c.credit ? JSON.stringify(c.credit) : '')}" title="${esc(c.title || '')}">
+  return `<button type="button" class="cand ${kind === 'picto' ? 'picto' : ''}" data-action="pic-choose" data-kind="${kind}" data-src="${esc(c.src)}" data-credit="${esc(c.credit ? JSON.stringify(c.credit) : '')}" title="${esc(c.title || '')}">
     <img src="${esc(c.src)}" alt="${esc(c.title || '')}" loading="lazy" onerror="this.closest('.cand').classList.add('failed')">
     ${c.title ? `<span>${esc(c.title)}</span>` : ''}
   </button>`;
@@ -537,7 +552,33 @@ async function renderPicTab(set, word) {
   const tab = ui.picTab;
   const deCore = core(word.german, 'de'), foCore = core(word.foreign, set.lang);
 
-  if (tab === 'photo') {
+  if (tab === 'picto') {
+    body.innerHTML = `
+      <p class="muted">Piktogramme sind einfache, eindeutige Zeichnungen. Es gibt sie auch für Verben, Gefühle und Eigenschaften.</p>
+      <form class="search-row" id="picto-search">
+        <input id="picto-q" type="search" value="${esc(deCore || foCore)}" aria-label="Suchbegriff (Deutsch, ${LANGS[set.lang].name} oder Englisch)">
+        <button class="btn secondary" type="submit">${icon('search')} Suchen</button>
+      </form>
+      <div class="cands" id="picto-results"><p class="muted"><span class="spinner"></span> Suche Piktogramme …</p></div>
+      <p class="muted small">Piktogramme: Sergio Palao, <a href="https://arasaac.org" target="_blank" rel="noopener">ARASAAC</a> (CC BY-NC-SA)</p>`;
+    const show = (list) => {
+      const box = $('#picto-results');
+      if (!box) return;
+      if (net.arasaacDown && !list.length) box.innerHTML = '<p class="muted">Die Piktogramm-Sammlung ist gerade nicht erreichbar. Bist du online? Du kannst auch ein Emoji oder ein eigenes Bild wählen.</p>';
+      else if (!list.length) box.innerHTML = '<p class="muted">Kein Piktogramm gefunden. Probiere ein anderes Wort, zum Beispiel ein einfacheres deutsches Wort.</p>';
+      else box.innerHTML = list.map((c) => candHTML(c, 'picto')).join('');
+      $$('#picto-results .cand').forEach((c) => c.classList.toggle('chosen', c.dataset.src === word.pic?.src));
+    };
+    net.arasaacDown = false;
+    $('#picto-search').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      net.arasaacDown = false;
+      $('#picto-results').innerHTML = '<p class="muted"><span class="spinner"></span> Suche …</p>';
+      show(await pictoSearch($('#picto-q').value.trim(), set.lang));
+    });
+    const first = await pictoCandidates(word, set.lang, 12);
+    show(first.length ? first : await pictoSearch(deCore || foCore, set.lang));
+  } else if (tab === 'photo') {
     body.innerHTML = `
       <form class="search-row" id="photo-search">
         <input id="photo-q" type="search" value="${esc(deCore || foCore)}" aria-label="Suchbegriff">
@@ -649,6 +690,74 @@ async function renderPicTab(set, word) {
       toast('Bild übernommen.');
     });
   }
+}
+
+/* ---------------- Bilder prüfen ---------------- */
+function viewPics(set) {
+  const L = LANGS[set.lang].name;
+  return `<section class="mode pics-view">
+    <div class="mode-bar">
+      <h1 class="mode-title">Bilder prüfen</h1>
+      <div class="mode-controls"><button class="btn primary" data-action="open-set" data-id="${set.id}">${icon('check')} Fertig</button></div>
+    </div>
+    <p class="lead pics-lead">Passt jedes Bild eindeutig zu seinem Wort? Tippe auf ein besseres Bild. Lässt sich ein Wort nicht gut zeigen, wähle <strong>Kein Bild</strong> – dann kommt es nur bei „${L} ↔ Deutsch“ dran, nicht beim Bilder-Zuordnen.</p>
+    <ol class="review-list">${set.words.map((w) => `<li class="rrow" id="rr-${w.id}">${reviewRowHTML(set, w)}</li>`).join('')}</ol>
+    <p class="credits">${creditsText(set) || 'Piktogramme: Sergio Palao, <a href="https://arasaac.org" target="_blank" rel="noopener">ARASAAC</a>, Lizenz CC BY-NC-SA.'}</p>
+  </section>`;
+}
+
+function candPicHTML(c) {
+  if (c.kind === 'emoji') return `<span class="emo">${esc(c.src)}</span>`;
+  if (c.kind === 'color') return `<span class="swatch" style="--swatch:${esc(c.src)}"></span>`;
+  if (c.kind === 'number') return `<span class="num">${esc(c.src)}</span>`;
+  return `<img src="${esc(c.src)}" alt="${esc(c.title || '')}" loading="lazy" onerror="this.closest('.rcand').classList.add('failed')">`;
+}
+
+function reviewRowHTML(set, w) {
+  const cands = ui.reviewCands[w.id];
+  const cur = w.pic;
+  let list = cands ? cands.slice() : [];
+  if (cur && cur.kind !== 'none' && cur.src && !list.some((c) => c.src === cur.src)) list.unshift(cur);
+  ui.reviewList = ui.reviewList || {};
+  ui.reviewList[w.id] = list;
+  const curSrc = effectivePic(w, set.lang)?.src;
+  const label = { picto: 'Piktogramm', emoji: 'Emoji', photo: 'Foto', ai: 'KI-Bild', upload: 'eigenes Bild', drawn: 'Zeichnung', url: 'Bild', color: 'Farbe', number: 'Zahl' };
+  return `<div class="rrow-word"><strong lang="${set.lang}">${esc(w.foreign)}</strong><small lang="de">${esc(w.german)}</small></div>
+    <div class="rrow-cands">
+      ${cands ? '' : '<span class="rcand loading"><span class="spinner"></span></span>'}
+      ${list.map((c, i) => `<button type="button" class="rcand ${c.kind === 'picto' ? 'picto' : ''} ${cur?.kind !== 'none' && c.src === curSrc ? 'chosen' : ''}" data-action="review-pick" data-wid="${w.id}" data-i="${i}" title="${esc(label[c.kind] || '')}${c.title ? ': ' + esc(c.title) : ''}" aria-label="${esc(label[c.kind] || 'Bild')} wählen">${candPicHTML(c)}</button>`).join('')}
+      <button type="button" class="rcand text ${cur?.kind === 'none' ? 'chosen' : ''}" data-action="review-none" data-wid="${w.id}">${icon('x')}<span>Kein Bild</span></button>
+      <button type="button" class="rcand text" data-action="pic-dialog" data-wid="${w.id}">${icon('search')}<span>Mehr …</span></button>
+    </div>`;
+}
+
+function renderReviewRow(set, w) {
+  const el = document.getElementById('rr-' + w.id);
+  if (el) el.innerHTML = reviewRowHTML(set, w);
+}
+
+async function loadReview(set) {
+  const queue = set.words.filter((w) => !ui.reviewCands[w.id]);
+  let i = 0;
+  const worker = async () => {
+    while (i < queue.length) {
+      const w = queue[i++];
+      if (ui.view !== 'pics') return;
+      const noun = isNounish(w, set.lang);
+      const [pictos, photo] = await Promise.all([
+        pictoCandidates(w, set.lang, 5).catch(() => []),
+        noun ? photoPicture(w, set.lang).catch(() => null) : null,
+      ]);
+      const local = localPicture(w, set.lang);
+      const list = [...pictos];
+      if (local) list.push(local);
+      if (photo) list.push(photo);
+      const seen = new Set();
+      ui.reviewCands[w.id] = list.filter((c) => (seen.has(c.src) ? false : seen.add(c.src)));
+      if (ui.view === 'pics') renderReviewRow(set, w);
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
 }
 
 function emojiBtn(pic, title = '') {
