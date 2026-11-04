@@ -4,7 +4,7 @@ Ein Vokabelspiel für Englisch und Französisch. Vokabeln einfügen, und daraus 
 
 1. **Lernkarten** zum Umdrehen, mit Bild. Vorne steht wahlweise das Bild, Bild + Wort, das englische/französische Wort oder das deutsche Wort. Als Stapel („Gewusst“ / „Nochmal“) oder alle Karten auf einmal.
 2. **Zuordnen**: Bild ↔ Fremdwort oder Fremdwort ↔ Deutsch. Antippen oder eine Linie ziehen.
-3. **Aussprechen**: Wort oder Bild wird gezeigt, das Kind spricht ins Mikrofon. Ist es richtig, geht es weiter. Wenn nicht, kann es sich die richtige Aussprache anhören (auch langsam) und es nochmal versuchen.
+3. **Aussprechen**: Wort oder Bild wird gezeigt, das Kind spricht ins Mikrofon. Ist es richtig, geht es weiter. Wenn nicht, kann es sich die richtige Aussprache anhören (auch langsam) und es nochmal versuchen. Wie streng bewertet wird, stellst du in den Einstellungen ein: **Streng** (Standard – nur genau das Wort zählt; „Brad“ oder „bird“ statt „bread“ ist falsch, ebenso wenn der Browser sich unsicher war), **Mittel** (bei langen Wörtern darf ein Laut abweichen) oder **Locker** (ähnlich klingende Wörter zählen auch).
 4. **Test**: Bild → schreiben, Deutsch → schreiben, Hören → schreiben (Diktat) und Bedeutung wählen. Fast richtige Antworten (Akzent vergessen, Artikel fehlt, ein Tippfehler) zählen einen halben Punkt. Am Ende gibt es eine Auswertung und man kann nur die Fehler wiederholen.
 
 ## Vokabeln einfügen

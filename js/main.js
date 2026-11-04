@@ -142,6 +142,12 @@ const actions = {
   },
 
   /* Einstellungen */
+  'set-speech-level': (el) => {
+    db.settings.speechLevel = el.dataset.level; saveDB();
+    $$('[data-action="set-speech-level"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.level === db.settings.speechLevel)));
+    const h = $('#speech-level-hint');
+    if (h) h.textContent = SPEECH_LEVELS[db.settings.speechLevel].hint;
+  },
   'set-accent': (el) => {
     db.settings.accent = el.dataset.accent; saveDB();
     $$('[data-action="set-accent"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.accent === db.settings.accent)));

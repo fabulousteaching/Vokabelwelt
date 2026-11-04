@@ -507,8 +507,12 @@ function speakZone(set, w) {
   }
   if (s === 'bad') {
     const help = speakM.heard ? '' : (silenceHelp(speakM.peak) || 'Wenn das öfter passiert: Einstellungen (oben rechts) → „Mikrofon testen“.');
+    const detail = !speakM.heard ? ' Tippe auf das Mikrofon und sprich gleich danach laut und deutlich.'
+      : speakM.note === 'unsure' ? ` Ich habe „${esc(speakM.heard)}“ verstanden, war mir aber nicht sicher. Sprich es noch einmal ganz deutlich.`
+        : speakM.note === 'article' ? ` Ich habe „${esc(speakM.heard)}“ verstanden. Achte auf den Artikel: „${esc(w.foreign)}“.`
+          : ` Ich habe „${esc(speakM.heard)}“ verstanden. Richtig ist „${esc(w.foreign)}“.`;
     return `<div class="banner bad">${icon('x')}<div><strong>${speakM.heard ? 'Noch nicht ganz.' : 'Ich habe nichts gehört.'}</strong>
-        ${speakM.heard ? ` Ich habe „${esc(speakM.heard)}“ verstanden.` : ' Tippe auf das Mikrofon und sprich gleich danach laut und deutlich.'}
+        ${detail}
         ${help ? `<span class="help-line">${esc(help)}</span>` : ''}</div></div>
       <div class="row center">${listenBtns}</div>
       <div class="row center">
@@ -585,7 +589,8 @@ async function doListen() {
     speakM.attempts++;
     if (!alts.length) speakM.silentTries = (speakM.silentTries || 0) + 1; else speakM.silentTries = 0;
     const res = speechMatch(alts, w, set.lang);
-    speakM.heard = res.heard || alts[0] || '';
+    speakM.heard = res.heard || (db.settings.speechLevel === 'loose' ? alts[0] : '') || '';
+    speakM.note = res.note || '';
     if (res.ok) {
       speakM.state = 'ok';
       if (!speakM.results.has(w.id)) speakM.results.set(w.id, speakM.attempts === 1 && !speakM.revealed ? 'ok' : 'retry');

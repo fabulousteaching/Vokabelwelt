@@ -162,36 +162,77 @@ for (const lang of Object.keys(HOMOPHONES)) {
   for (const group of HOMOPHONES[lang]) for (const w of group) homophoneMap[lang].set(stripAccents(w), stripAccents(group[0]));
 }
 
-function normSpeech(s, lang) {
+function normSpeech(s, lang, keepArticle = false) {
   let t = String(s || '').toLowerCase().normalize('NFC').replace(/[’‘`´]/g, "'");
   t = stripParens(t);
   t = t.replace(/\b(\d{1,2})\b/g, (m, n) => (window.NUMBER_WORDS[lang] || [])[+n] || m);
   t = t.replace(/[.,!?;:«»"“”„()…]/g, ' ').replace(/\s+[–—-]\s+/g, ' ').replace(/\s+/g, ' ').trim();
-  t = stripArticle(t, lang);
+  if (!keepArticle) t = stripArticle(t, lang);
   t = stripAccents(t).replace(/-/g, ' ').replace(/'/g, ' ').replace(/\s+/g, ' ').trim();
   const hm = homophoneMap[lang];
   if (hm) t = t.split(' ').map((w) => hm.get(w) || w).join(' ');
   return t;
 }
 
-/** Vergleicht die Erkennungs-Alternativen mit dem Zielwort */
-function speechMatch(alternatives, word, lang) {
-  const targets = answerVariants(word.foreign).map((v) => normSpeech(v, lang)).filter(Boolean);
-  let best = { ok: false, score: 0, heard: alternatives[0] || '' };
-  for (const alt of alternatives) {
-    const h = normSpeech(alt, lang);
-    if (!h) continue;
-    for (const t of targets) {
-      if (h === t || (` ${h} `).includes(` ${t} `)) return { ok: true, score: 1, heard: alt };
-      const hw = h.split(' '), n = t.split(' ').length;
-      let sc = similarity(h, t);
-      for (let i = 0; i + n <= hw.length; i++) sc = Math.max(sc, similarity(hw.slice(i, i + n).join(' '), t));
-      const need = t.length <= 3 ? 1 : t.length <= 5 ? 0.8 : 0.75;
-      if (sc >= need) return { ok: true, score: sc, heard: alt };
-      if (sc > best.score) best = { ok: false, score: sc, heard: alt };
+/* Wie streng die Aussprache bewertet wird:
+   strict – nur der erste (wahrscheinlichste) erkannte Text zählt, und er muss genau das Wort sein.
+            Meldet der Browser, dass er unsicher war, zählt es auch nicht.
+   medium – wie streng, aber bei langen Wörtern darf ein Buchstabe abweichen (z. B. Plural-s).
+   loose  – ähnlich klingende Wörter und alle Vorschläge des Browsers zählen (frühere Einstellung). */
+const SPEECH_LEVELS = {
+  strict: { label: 'Streng', hint: 'Nur genau das richtige Wort zählt.' },
+  medium: { label: 'Mittel', hint: 'Bei langen Wörtern darf ein Laut abweichen.' },
+  loose: { label: 'Locker', hint: 'Ähnlich klingende Wörter zählen auch.' },
+};
+const STRICT_MIN_CONFIDENCE = 0.5;
+
+const frArticle = (normWithArticle) => (normWithArticle.match(/^(de la|de l|le|la|les|l|un|une|des|du)\s/) || [])[1] || '';
+
+/** Vergleicht das Erkannte mit dem Zielwort. alternatives.best = { t, conf, final } (von listenOnce) */
+function speechMatch(alternatives, word, lang, level = db.settings.speechLevel || 'strict') {
+  const variants = answerVariants(word.foreign);
+  const targets = variants.map((v) => normSpeech(v, lang)).filter(Boolean);
+  const best = alternatives.best || { t: alternatives[0] || '', conf: 0, final: false };
+
+  if (level === 'loose') {
+    let res = { ok: false, score: 0, heard: alternatives[0] || '' };
+    for (const alt of alternatives) {
+      const h = normSpeech(alt, lang);
+      if (!h) continue;
+      for (const t of targets) {
+        if (h === t || (` ${h} `).includes(` ${t} `)) return { ok: true, score: 1, heard: alt };
+        const hw = h.split(' '), n = t.split(' ').length;
+        let sc = similarity(h, t);
+        for (let i = 0; i + n <= hw.length; i++) sc = Math.max(sc, similarity(hw.slice(i, i + n).join(' '), t));
+        const need = t.length <= 3 ? 1 : t.length <= 5 ? 0.8 : 0.75;
+        if (sc >= need) return { ok: true, score: sc, heard: alt };
+        if (sc > res.score) res = { ok: false, score: sc, heard: alt };
+      }
     }
+    return res;
   }
-  return best;
+
+  // streng / mittel: nur der wahrscheinlichste Text zählt
+  const heard = best.t || '';
+  const h = normSpeech(heard, lang);
+  if (!h) return { ok: false, score: 0, heard: '' };
+  const squash = (x) => x.replace(/ /g, '');
+  const ok = targets.some((t) => h === t || squash(h) === squash(t)
+    || (level === 'medium' && t.length >= 7 && lev(squash(h), squash(t)) <= 1));
+  const score = Math.max(0, ...targets.map((t) => similarity(h, t)));
+  if (!ok) return { ok: false, score, heard };
+
+  // Französisch: Wird ein Artikel gesagt, muss es der richtige sein (le ≠ la).
+  if (lang === 'fr') {
+    const hArt = frArticle(normSpeech(heard, lang, true));
+    const tArts = variants.map((v) => frArticle(normSpeech(v, lang, true))).filter(Boolean);
+    if (hArt && tArts.length && !tArts.includes(hArt)) return { ok: false, score, heard, note: 'article' };
+  }
+  // Streng: Der Browser war sich selbst nicht sicher → nicht zählen.
+  if (level === 'strict' && best.final && best.conf > 0 && best.conf < STRICT_MIN_CONFIDENCE) {
+    return { ok: false, score, heard, note: 'unsure' };
+  }
+  return { ok: true, score: 1, heard };
 }
 
 /** Text, der vorgelesen wird (Abkürzungen ausgeschrieben) */
@@ -277,7 +318,7 @@ function parseVocab(text, opts = {}) {
 
 /* ---------------- Speicher ---------------- */
 const STORE_KEY = 'vokabelwelt.v1';
-const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '' };
+const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '', speechLevel: 'strict' };
 let db = { sets: [], settings: structuredClone(DEFAULT_SETTINGS) };
 
 function loadDB() {
@@ -808,11 +849,13 @@ function listenOnce(lang, { onStart, onInterim, timeoutMs = 8000, track = null }
   return new Promise((resolve, reject) => {
     let rec, timer = null, settled = false;
     let alts = [];
+    let best = null; // wahrscheinlichster Text: { t, conf, final }
     const finish = (val, err) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       if (listening.rec === rec) listening.rec = null;
+      if (val) val.best = best;
       if (err) reject(err); else resolve(val);
     };
     try { rec = new SpeechRec(); } catch { reject('not-supported'); return; }
@@ -825,18 +868,19 @@ function listenOnce(lang, { onStart, onInterim, timeoutMs = 8000, track = null }
     rec.onresult = (e) => {
       const found = [];
       const firsts = [];
-      let isFinal = false;
+      let isFinal = false, conf = 1;
       for (let r = 0; r < e.results.length; r++) {
         const res = e.results[r];
         if (res.isFinal) isFinal = true;
         for (let i = 0; i < res.length; i++) {
           const t = (res[i] && res[i].transcript || '').trim();
           if (t) found.push(t);
-          if (i === 0 && t) firsts.push(t);
+          if (i === 0 && t) { firsts.push(t); conf = Math.min(conf, Number(res[i].confidence) || 0); }
         }
       }
       if (firsts.length > 1) found.unshift(firsts.join(' '));
       if (!found.length) return;
+      if (firsts.length) best = { t: firsts.join(' '), conf: isFinal ? conf : 0, final: isFinal };
       alts = [...new Set([...found, ...alts])];
       onInterim?.(found[0]);
       if (isFinal) { try { rec.stop(); } catch { /* */ } finish(alts); }

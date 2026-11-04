@@ -303,6 +303,10 @@ function renderPreview() {
 
 function createSetFromDraft() {
   const d = ui.draft;
+  // direkt aus den Feldern lesen – falls gerade erst eingefügt wurde
+  const ta = $('#vocab-input'), nm = $('#set-name');
+  if (ta) d.text = ta.value;
+  if (nm) d.name = nm.value;
   const res = parseVocab(d.text, { swap: d.swap });
   const rows = res.rows.filter((r) => r.foreign);
   if (!rows.length) {
@@ -861,6 +865,12 @@ function openSettings() {
     <div class="settings">
       <label class="switch"><input type="checkbox" id="set-sound" ${s.sound ? 'checked' : ''}><span>Klänge bei richtig und falsch</span></label>
       <label class="switch"><input type="checkbox" id="set-autospeak" ${s.autoSpeak ? 'checked' : ''}><span>Wörter automatisch vorlesen</span></label>
+      <div class="field"><span class="label">Aussprache bewerten</span>
+        <div class="seg" role="group" aria-label="Wie streng die Aussprache bewertet wird">
+          ${Object.entries(SPEECH_LEVELS).map(([k, v]) => `<button type="button" class="seg-btn" data-action="set-speech-level" data-level="${k}" aria-pressed="${(s.speechLevel || 'strict') === k}">${v.label}</button>`).join('')}
+        </div>
+        <p class="muted small" id="speech-level-hint">${SPEECH_LEVELS[s.speechLevel || 'strict'].hint}</p>
+      </div>
       <div class="field"><span class="label">Englische Aussprache</span>
         <div class="seg" role="group" aria-label="Englische Aussprache">
           <button type="button" class="seg-btn" data-action="set-accent" data-accent="gb" aria-pressed="${s.accent !== 'us'}">Britisch</button>
