@@ -626,6 +626,21 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); outline: 
 .switch input { width: 22px; height: 22px; accent-color: var(--blue); }
 input[type="range"] { accent-color: var(--blue); width: 100%; }
 .share-box { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85rem; resize: vertical; word-break: break-all; }
+.share-grid { display: grid; gap: 1.2rem; align-items: start; }
+@media (min-width: 680px) { .share-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); } }
+.qr-box { display: grid; justify-items: center; gap: .6rem; text-align: center; }
+.qr-btn { padding: 0; border: 0; background: none; cursor: zoom-in; width: min(100%, 280px); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-soft); }
+.qr { display: block; width: 100%; height: auto; }
+.link-box { display: grid; gap: .6rem; align-content: start; min-width: 0; }
+.qr-full {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: #fff; color: #18264A;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.qr-full-inner { display: grid; justify-items: center; gap: 1rem; text-align: center; width: 100%; }
+.qr-full h2 { font-size: clamp(1.4rem, 4vw, 2.6rem); color: #18264A; }
+.qr-full .qr { width: min(78vh, 92vw); }
+.qr-full p { font-size: clamp(1.1rem, 2.5vw, 1.6rem); font-weight: 700; color: #18264A; }
+.qr-full .btn { --bg: #fff; --fg: #18264A; --b: #CAD4E4; }
 .share-more summary { cursor: pointer; font-weight: 700; color: var(--ink-2); margin-bottom: .5rem; }
 .share-more { display: grid; gap: .5rem; }
 

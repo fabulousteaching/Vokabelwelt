@@ -56,7 +56,7 @@ Piktogramme: Sergio Palao, ARASAAC (https://arasaac.org), Eigentum der Regierung
 
 ## Mit der Klasse teilen
 
-„Teilen“ erzeugt einen Link, der die ganze Vokabelportion samt Bildern enthält. Wer ihn öffnet, hat die Portion sofort in seinem Browser. Eigene hochgeladene Fotos passen nicht in den Link; dort werden automatisch Bilder gesucht.
+„Teilen“ erzeugt einen Link und einen **QR-Code**, die die ganze Vokabelportion samt Bildern enthalten. Mit „Groß anzeigen“ kannst du den QR-Code am Beamer oder Whiteboard zeigen; die Kinder scannen ihn mit der Kamera ihres Handys oder Tablets und haben die Portion sofort in ihrem Browser. „Als Bild“ speichert den QR-Code, z. B. für ein Arbeitsblatt. Eigene hochgeladene Fotos passen nicht in den Link; dort werden automatisch Bilder gesucht.
 
 Alles wird nur im Browser gespeichert (localStorage). Es gibt keinen Server und keine Anmeldung.
 
@@ -86,3 +86,4 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt:
 | `js/ui.js` | Startseite, Übersicht, Dialoge |
 | `js/modes.js` | Lernkarten, Zuordnen, Aussprechen, Test |
 | `js/main.js` | Aktionen und Start |
+| `js/vendor/qrcode.js` | QR-Code-Erzeugung ([qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), MIT-Lizenz, Kazuhiko Arase) |

@@ -1034,15 +1034,47 @@ function b64urlDecode(str) {
   const bin = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
-async function encodeShare(set) {
+/* Bilder im Link möglichst kurz speichern, damit der QR-Code grob und gut scanbar bleibt:
+   p<ARASAAC-Nr>  c<Sammlung:Name>  e<Emoji>  k<Farbe>  n<Zahl>  x = kein Bild  f<Foto-Adresse>  u<Bild-Adresse> */
+function picToCode(p) {
+  if (!p) return '';
+  if (p.kind === 'none') return 'x';
+  const src = String(p.src || '');
+  if (p.kind === 'upload' || p.kind === 'drawn' || src.startsWith('data:')) return ''; // zu groß für den Link
+  if (p.kind === 'picto') { const m = src.match(/pictograms\/(\d+)\/\1_\d+\.png$/); if (m) return 'p' + m[1]; }
+  if (p.kind === 'clipart') { const m = src.match(/api\.iconify\.design\/([^/]+)\/([^/]+)\.svg$/); if (m) return `c${m[1]}:${m[2]}`; }
+  if (p.kind === 'emoji') return 'e' + src;
+  if (p.kind === 'color') return 'k' + src;
+  if (p.kind === 'number') return 'n' + src;
+  if (p.kind === 'photo') return 'f' + src;
+  if (/^https?:/.test(src)) return 'u' + src;
+  return '';
+}
+function codeToPic(code) {
+  const c = String(code || ''), t = c[0], v = c.slice(1);
+  if (!c) return null;
+  if (c === 'x') return { kind: 'none', src: '', manual: true };
+  if (t === 'p' && /^\d+$/.test(v)) return { kind: 'picto', src: arasaacImg(v), credit: ARASAAC_CREDIT, manual: true };
+  if (t === 'c' && /^[\w-]+:[\w-]+$/.test(v)) {
+    const [prefix, name] = v.split(':');
+    return { kind: 'clipart', src: `https://api.iconify.design/${prefix}/${name}.svg`, title: name.replace(/-/g, ' '),
+      credit: { text: `Clipart: ${CLIPART_SETS[prefix] || prefix}`, url: `https://icon-sets.iconify.design/${prefix}/${name}/` }, manual: true };
+  }
+  if (t === 'e' && v) return { kind: 'emoji', src: v, manual: true };
+  if (t === 'k' && /^#[0-9a-f]{3,8}$/i.test(v)) return { kind: 'color', src: v, manual: true };
+  if (t === 'n' && /^\d{1,5}$/.test(v)) return { kind: 'number', src: v, manual: true };
+  if ((t === 'f' || t === 'u') && /^https:\/\//.test(v)) return { kind: t === 'f' ? 'photo' : 'url', src: v, manual: true };
+  return null;
+}
+
+/** lite: Fotos/Bild-Adressen weglassen (die Geräte der Kinder suchen dann selbst) – für einen kürzeren QR-Code */
+async function encodeShare(set, { lite = false } = {}) {
   const data = {
-    v: 1, n: set.name, l: set.lang, s: set.picStyle,
+    v: 2, n: set.name, l: set.lang, s: set.picStyle,
     w: set.words.map((w) => {
-      const row = [w.foreign, w.german];
-      const p = w.pic;
-      if (p && p.kind === 'none') row.push('none', '-');
-      else if (p && p.kind !== 'upload' && p.kind !== 'drawn' && !String(p.src).startsWith('data:')) row.push(p.kind, p.src);
-      return row;
+      let code = picToCode(w.pic);
+      if (lite && /^[fu]/.test(code)) code = '';
+      return code ? [w.foreign, w.german, code] : [w.foreign, w.german];
     }),
   };
   const bytes = new TextEncoder().encode(JSON.stringify(data));
@@ -1063,13 +1095,14 @@ async function decodeShare(code) {
     json = await new Response(stream).text();
   } else json = new TextDecoder().decode(bytes);
   const d = JSON.parse(json);
+  const v1pic = (r) => (r[2] === 'ai' ? null
+    : r[2] === 'none' ? { kind: 'none', src: '', manual: true }
+      : r[2] && r[3] ? { kind: String(r[2]), src: String(r[3]), manual: true } : null);
   return {
     name: String(d.n || 'Vokabeln'), lang: d.l === 'fr' ? 'fr' : 'en', picStyle: ['picto', 'clipart', 'photo', 'emoji'].includes(d.s) ? d.s : 'picto',
     rows: (d.w || []).map((r) => ({
       foreign: String(r[0] || ''), german: String(r[1] || ''),
-      pic: r[2] === 'ai' ? null
-        : r[2] === 'none' ? { kind: 'none', src: '', manual: true }
-        : r[2] && r[3] ? { kind: String(r[2]), src: String(r[3]), manual: true } : null,
+      pic: d.v === 2 ? codeToPic(r[2]) : v1pic(r),
     })),
   };
 }

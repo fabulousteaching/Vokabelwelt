@@ -976,18 +976,111 @@ async function openShare(set) {
       <footer class="modal-foot"><button type="button" class="btn primary" data-action="copy" data-target="share-text">${icon('copy')} Kopieren</button></footer>`, { label: 'Liste kopieren' });
     return;
   }
-  const code = await encodeShare(set);
-  const url = `${location.origin}${location.pathname}#v=${code}`;
+  const base = `${location.origin}${location.pathname}#v=`;
+  const url = base + await encodeShare(set);
+  // Für den QR-Code: so kurz wie möglich. Notfalls ohne Foto-Adressen (die Kinder-Geräte suchen dann selbst).
+  let qrUrl = url, qrLite = false;
+  if (url.length > QR_COMFORT) {
+    const lite = base + await encodeShare(set, { lite: true });
+    if (lite.length < url.length) { qrUrl = lite; qrLite = true; }
+  }
+  const qr = makeQR(qrUrl);
+  ui.share = { url, qrUrl, qr, name: set.name };
   const hasUploads = set.words.some((w) => w.pic && (w.pic.kind === 'upload' || w.pic.kind === 'drawn'));
   openModal(`
     <header class="modal-head"><h2>Mit der Klasse teilen</h2><button type="button" class="icon-btn" data-action="close-modal" aria-label="Schließen">${icon('x')}</button></header>
-    <p>Wer diesen Link öffnet, bekommt die Portion „${esc(set.name)}“ mit allen Karten und Bildern.</p>
-    <textarea id="share-url" class="share-box" rows="4" readonly>${esc(url)}</textarea>
-    ${hasUploads ? '<p class="warn">Eigene Fotos sind zu groß für den Link. Dort erscheinen stattdessen automatisch gesuchte Bilder.</p>' : ''}
-    ${location.protocol === 'file:' ? '<p class="warn">Du hast Vokabelwelt als Datei geöffnet. Damit der Link bei anderen funktioniert, muss Vokabelwelt im Internet liegen (zum Beispiel über GitHub Pages).</p>' : ''}
-    <details class="share-more"><summary>Nur die Wörter als Text</summary><textarea id="share-text" class="share-box" rows="6" readonly>${esc(text)}</textarea>
-      <button type="button" class="btn small ghost" data-action="copy" data-target="share-text">${icon('copy')} Text kopieren</button></details>
-    <footer class="modal-foot"><button type="button" class="btn primary" data-action="copy" data-target="share-url">${icon('copy')} Link kopieren</button></footer>`, { label: 'Teilen' });
+    <div class="share-grid">
+      <div class="qr-box">
+        ${qr ? `<button type="button" class="qr-btn" data-action="qr-full" aria-label="QR-Code groß anzeigen">${qrSVG(qr)}</button>
+          <p class="small muted">${qr.getModuleCount() > 89 ? 'Viele Wörter – der Code ist fein. Am besten groß anzeigen.' : 'Mit der Handy- oder Tablet-Kamera scannen.'}</p>
+          <div class="row center">
+            <button type="button" class="btn primary" data-action="qr-full">${icon('grid')} Groß anzeigen</button>
+            <button type="button" class="btn ghost" data-action="qr-save">${icon('upload')} Als Bild</button>
+          </div>`
+          : '<p class="warn">Für einen QR-Code sind es zu viele Wörter. Teile den Link oder teile die Portion in zwei kleinere auf.</p>'}
+      </div>
+      <div class="link-box">
+        <p>Wer den QR-Code scannt oder den Link öffnet, bekommt die Portion „${esc(set.name)}“ mit allen Karten und Bildern.</p>
+        ${qrLite ? '<p class="muted small">Im QR-Code sind die Foto-Adressen weggelassen, damit er gut lesbar bleibt. Die Geräte der Kinder suchen diese Bilder selbst. Mit dem Link kommen alle Bilder mit.</p>' : ''}
+        <textarea id="share-url" class="share-box" rows="4" readonly>${esc(url)}</textarea>
+        <button type="button" class="btn secondary" data-action="copy" data-target="share-url">${icon('copy')} Link kopieren</button>
+        ${hasUploads ? '<p class="warn">Eigene Fotos sind zu groß für den Link. Dort erscheinen stattdessen automatisch gesuchte Bilder.</p>' : ''}
+        ${location.protocol === 'file:' ? '<p class="warn">Du hast Vokabelwelt als Datei geöffnet. Damit Link und QR-Code bei anderen funktionieren, muss Vokabelwelt im Internet liegen (zum Beispiel über GitHub Pages).</p>' : ''}
+        <details class="share-more"><summary>Nur die Wörter als Text</summary><textarea id="share-text" class="share-box" rows="6" readonly>${esc(text)}</textarea>
+          <button type="button" class="btn small ghost" data-action="copy" data-target="share-text">${icon('copy')} Text kopieren</button></details>
+      </div>
+    </div>`, { cls: 'wide', label: 'Teilen' });
+}
+
+/* ---------- QR-Code ---------- */
+const QR_COMFORT = 900; // bis hierhin bleibt der Code grob genug für den Beamer
+
+function makeQR(text) {
+  if (typeof qrcode !== 'function') return null;
+  try {
+    const q = qrcode(0, 'L'); // Größe automatisch, wenig Fehlerkorrektur = gröbere Punkte
+    q.addData(text, 'Byte');
+    q.make();
+    return q;
+  } catch { return null; } // zu lang für einen QR-Code
+}
+
+function qrSVG(q, label = 'QR-Code zum Scannen') {
+  const n = q.getModuleCount(), m = 4, size = n + m * 2;
+  let d = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c + m} ${r + m}h1v1h-1z`;
+  return `<svg class="qr" viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+
+function openQRFull() {
+  const sh = ui.share;
+  if (!sh?.qr) return;
+  const prevModal = ui.modal;
+  const wrap = document.createElement('div');
+  wrap.className = 'qr-full';
+  wrap.setAttribute('role', 'dialog');
+  wrap.setAttribute('aria-label', 'QR-Code groß');
+  wrap.innerHTML = `<div class="qr-full-inner">
+      <h2>${esc(sh.name)}</h2>
+      ${qrSVG(sh.qr)}
+      <p>Kamera öffnen und den Code scannen</p>
+      <button type="button" class="btn ghost" data-action="qr-full-close">${icon('x')} Schließen</button>
+    </div>`;
+  document.body.appendChild(wrap);
+  ui.qrFull = wrap;
+  try { wrap.requestFullscreen?.().catch(() => {}); } catch { /* */ }
+  wrap.querySelector('button').focus();
+  void prevModal;
+}
+function closeQRFull() {
+  const w = ui.qrFull;
+  if (!w) return;
+  ui.qrFull = null;
+  try { if (document.fullscreenElement) document.exitFullscreen(); } catch { /* */ }
+  w.remove();
+}
+
+function saveQRImage() {
+  const sh = ui.share;
+  if (!sh?.qr) return;
+  const n = sh.qr.getModuleCount(), m = 4, cell = 12, size = (n + m * 2) * cell;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size + 70;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+  x.fillStyle = '#000';
+  for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (sh.qr.isDark(r, k)) x.fillRect((k + m) * cell, (r + m) * cell, cell, cell);
+  x.fillStyle = '#18264A'; x.font = 'bold 30px sans-serif'; x.textAlign = 'center';
+  x.fillText(sh.name.slice(0, 40), size / 2, size + 30);
+  c.toBlob((blob) => {
+    if (!blob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Vokabelwelt-QR-${sh.name.replace(/[^\wäöüÄÖÜß-]+/g, '-').slice(0, 40)}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('QR-Code als Bild gespeichert.');
+  }, 'image/png');
 }
 
 function copyFrom(id) {

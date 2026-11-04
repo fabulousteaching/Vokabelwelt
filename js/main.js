@@ -50,6 +50,9 @@ const actions = {
   'edit-lang': (el) => { ui.modal.editLang = el.dataset.lang; $('#edit-lang').innerHTML = langSeg(ui.modal.editLang, 'edit-lang'); },
   share: () => openShare(currentSet()),
   copy: (el) => copyFrom(el.dataset.target),
+  'qr-full': () => openQRFull(),
+  'qr-full-close': () => closeQRFull(),
+  'qr-save': () => saveQRImage(),
   'pic-style': (el) => {
     const set = currentSet();
     const style = el.dataset.style;
@@ -314,6 +317,7 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && ui.qrFull) { closeQRFull(); return; }
   if (e.key === 'Escape' && ui.modal) { closeModal(); return; }
   if (ui.modal) return;
   const tag = (e.target.tagName || '').toLowerCase();
