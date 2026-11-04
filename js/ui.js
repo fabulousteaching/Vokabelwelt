@@ -30,15 +30,13 @@ const ICONS = {
   pencil2: '<path d="M3 21l3.5-1 11-11-2.5-2.5-11 11z"/><path d="M14 6.5l2.5-2.5 3.5 3.5-2.5 2.5"/>',
   brush: '<path d="M14.5 4.5l5 5-7.5 7.5-5-5z"/><path d="M7 12c-2 0-4 1.5-4 4.5V20h3.5C9.5 20 11 18 11 16"/>',
   picto: '<circle cx="12" cy="5.5" r="2.5"/><path d="M12 9v6M7.5 11.5 12 9l4.5 2.5M9 21l3-6 3 6"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/>',
   snail: '<path d="M3 18h15a3 3 0 0 0 3-3V9"/><path d="M19 6l1 3 1-3"/><circle cx="10" cy="12" r="5"/><path d="M10 12a1.8 1.8 0 1 1 1.8-1.8"/>',
 };
 const icon = (name, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
 
 let flagCounter = 0;
-function flag(lang) {
-  if (lang === 'fr') {
-    return '<svg class="flag" viewBox="0 0 3 2" aria-hidden="true"><rect width="1" height="2" fill="#0055A4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#EF4135"/></svg>';
-  }
+function flag() {
   const id = 'ukclip' + (++flagCounter);
   return `<svg class="flag" viewBox="0 0 60 30" aria-hidden="true"><clipPath id="${id}"><path d="M30,15h30v15zv15h-30zh-30v-15zv-15h30z"/></clipPath><path d="M0,0v30h60v-30z" fill="#012169"/><path d="M0,0 60,30M60,0 0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 60,30M60,0 0,30" clip-path="url(#${id})" stroke="#C8102E" stroke-width="4"/><path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/><path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></svg>`;
 }
@@ -48,14 +46,14 @@ const stars = (n, max = 3) => `<span class="stars" aria-label="${n} von ${max} S
 const ui = {
   view: 'home',
   setId: null,
-  draft: { text: '', lang: 'en', langManual: false, name: '', swap: false },
+  draft: { text: '', name: '', swap: false },
   confirmDelete: null,
   modal: null,
   picTab: 'picto',
   reviewCands: {},
 };
 const currentSet = () => getSet(ui.setId);
-const MODE_NAMES = { cards: 'Lernkarten', match: 'Zuordnen', speak: 'Aussprechen', test: 'Test', pics: 'Bilder prüfen' };
+const MODE_NAMES = { cards: 'Lernkarten', match: 'Zuordnen', speak: 'Aussprechen', dictation: 'Hören & Schreiben', test: 'Test', pics: 'Bilder prüfen' };
 
 /* ---------------- Rahmen ---------------- */
 function renderShell() {
@@ -67,7 +65,10 @@ function renderShell() {
           <span class="brand-name">Vokabelwelt</span>
         </button>
         <nav class="crumbs" id="crumbs" aria-label="Wo du gerade bist"></nav>
-        <button class="icon-btn" data-action="settings" aria-label="Einstellungen" title="Einstellungen">${icon('sliders')}</button>
+        <div class="topbar-actions">
+          <span id="account-slot">${accountButtonHTML()}</span>
+          <button class="icon-btn" data-action="settings" aria-label="Einstellungen" title="Einstellungen">${icon('sliders')}</button>
+        </div>
       </div>
     </header>
     <main id="view" class="view" tabindex="-1"></main>
@@ -94,6 +95,7 @@ function render() {
     case 'cards': renderCards(); break;
     case 'match': renderMatch(); break;
     case 'speak': renderSpeak(); break;
+    case 'dictation': renderDictation(); break;
     case 'test': renderTest(); break;
     case 'pics': v.innerHTML = viewPics(set); loadReview(set); break;
     default: v.innerHTML = viewHome(); bindHome();
@@ -114,6 +116,8 @@ function stopModes() {
   stopMeter();
   stopSpeaking();
   clearTimeout(speakM?.timer);
+  clearTimeout(test?.timer);
+  clearTimeout(dict?.timer);
   match?.ro?.disconnect();
 }
 
@@ -188,20 +192,14 @@ function confetti() {
 /* ---------------- Startseite ---------------- */
 const EXAMPLES = [
   {
-    name: 'Food & Animals', lang: 'en',
+    name: 'Food & Animals',
     text: 'apple – Apfel\nbanana – Banane\nbread – Brot\ncheese – Käse\nstrawberry – Erdbeere\nthe dog – der Hund\nthe cat – die Katze\nhorse – Pferd\nbutterfly – Schmetterling\nto swim – schwimmen\nhappy – glücklich\nred – rot',
   },
   {
-    name: 'À la maison', lang: 'fr',
-    text: 'la pomme – der Apfel\nla fraise – die Erdbeere\nle pain – das Brot\nle fromage – der Käse\nla maison – das Haus\nle chat – die Katze\nle chien – der Hund\nl’oiseau – der Vogel\nla voiture – das Auto\nle vélo – das Fahrrad\nnager – schwimmen\nbleu – blau',
+    name: 'School & Feelings',
+    text: 'the teacher – die Lehrerin, der Lehrer\nthe pencil – der Bleistift\nthe rubber / the eraser – der Radiergummi\nthe book – das Buch\nthe bag – die Tasche\nto read – lesen\nto write – schreiben\nsad – traurig\nangry – wütend\ntired – müde\nscared – ängstlich\nHow are you? – Wie geht es dir?',
   },
 ];
-
-function langSeg(current, action) {
-  return `<div class="seg" role="group" aria-label="Sprache">
-    ${['en', 'fr'].map((l) => `<button type="button" class="seg-btn" data-action="${action}" data-lang="${l}" aria-pressed="${current === l}">${flag(l)}<span>${LANGS[l].name}</span></button>`).join('')}
-  </div>`;
-}
 
 function viewHome() {
   const d = ui.draft;
@@ -209,18 +207,14 @@ function viewHome() {
   return `
   <section class="home">
     <div class="home-intro">
+      <p class="eyebrow">${flag()} Englisch-Vokabeln üben</p>
       <h1>Aus deiner Vokabelliste werden <mark>Lernkarten</mark>, Spiele und ein Test.</h1>
-      <p class="lead">Vokabeln einfügen, Sprache wählen, fertig. Die Bilder für die Karten sucht Vokabelwelt selbst.</p>
+      <p class="lead">Vokabeln einfügen, fertig. Die Bilder für die Karten sucht Vokabelwelt selbst.</p>
     </div>
     <div class="home-grid">
       <form class="panel new-set" id="new-set-form" autocomplete="off">
         <div class="panel-head">
           <h2>Neue Vokabelportion</h2>
-        </div>
-        <div class="field">
-          <span class="label" id="lang-label">Sprache</span>
-          <div id="lang-seg">${langSeg(d.lang, 'draft-lang')}</div>
-          <p class="hint" id="lang-hint"></p>
         </div>
         <label class="field" for="set-name">
           <span class="label">Name der Portion <small>(freiwillig)</small></span>
@@ -230,17 +224,18 @@ function viewHome() {
           <span class="label">Vokabeln</span>
           <textarea id="vocab-input" rows="9" spellcheck="false" placeholder="apple – Apfel&#10;the dog – der Hund&#10;to swim – schwimmen&#10;…">${esc(d.text)}</textarea>
         </label>
-        <p class="hint">Eine Vokabel pro Zeile, zum Beispiel <code>apple – Apfel</code> oder <code>la pomme = der Apfel</code>. Tabellen aus Word, Excel oder dem Schulbuch kannst du direkt hineinkopieren.</p>
+        <p class="hint">Eine Vokabel pro Zeile, zum Beispiel <code>apple – Apfel</code> oder <code>the dog = der Hund</code>. Tabellen aus Word, Excel oder dem Schulbuch kannst du direkt hineinkopieren.</p>
         <div id="parse-preview" class="parse-preview"></div>
         <button class="btn primary big" type="submit" data-action="create-set">${icon('stack')} Karten erstellen</button>
       </form>
 
       <aside class="panel library" aria-labelledby="lib-title">
         <h2 id="lib-title">Meine Vokabelportionen</h2>
+        ${libraryNote()}
         ${sets.length ? `<ul class="lib-list">${sets.map(libItem).join('')}</ul>` : '<p class="empty">Noch keine Portion gespeichert. Füge links deine Vokabeln ein – sie bleiben in diesem Browser gespeichert.</p>'}
         <h3 class="lib-sub">Zum Ausprobieren</h3>
         <ul class="examples">
-          ${EXAMPLES.map((ex, i) => `<li><button class="example" data-action="load-example" data-i="${i}">${flag(ex.lang)}<span><strong>${esc(ex.name)}</strong><small>Beispiel · ${LANGS[ex.lang].name} · 12 Vokabeln</small></span></button></li>`).join('')}
+          ${EXAMPLES.map((ex, i) => `<li><button class="example" data-action="load-example" data-i="${i}">${flag()}<span><strong>${esc(ex.name)}</strong><small>Beispiel · ${ex.text.split('\n').length} Vokabeln</small></span></button></li>`).join('')}
         </ul>
       </aside>
     </div>
@@ -261,7 +256,7 @@ function libItem(s) {
   return `<li class="lib-item">
     <button class="lib-open" data-action="open-set" data-id="${s.id}">
       <span class="lib-pics" aria-hidden="true">${s.words.slice(0, 3).map((w) => picHTML(w, s.lang, 'mini')).join('')}</span>
-      <span class="lib-text"><strong>${esc(s.name)}</strong><small>${flag(s.lang)} ${LANGS[s.lang].name} · ${s.words.length} Vokabeln${t != null ? ` · Test ${t} %` : ''}</small></span>
+      <span class="lib-text"><strong>${esc(s.name)}</strong><small>${s.words.length} Vokabeln${t != null ? ` · Test ${t} %` : ''}</small></span>
     </button>
     <button class="icon-btn subtle" data-action="delete-set" data-id="${s.id}" aria-label="„${esc(s.name)}“ löschen" title="Löschen">${icon('trash')}</button>
   </li>`;
@@ -281,13 +276,8 @@ function renderPreview() {
   if (!box) return;
   const d = ui.draft;
   const res = parseVocab(d.text, { swap: d.swap });
-  if (res.detected && !d.langManual && res.detected !== d.lang && res.rows.length >= 2) {
-    d.lang = res.detected;
-    $('#lang-seg').innerHTML = langSeg(d.lang, 'draft-lang');
-    $('#lang-hint').textContent = `Erkannt: ${LANGS[d.lang].name}. Falls das nicht stimmt, tippe auf die andere Sprache.`;
-  }
   if (!res.rows.length) { box.innerHTML = ''; return; }
-  const L = LANGS[d.lang].name;
+  const L = 'Englisch';
   const missing = res.rows.filter((r) => !r.foreign || !r.german).length;
   box.innerHTML = `
     <div class="preview-head">
@@ -296,7 +286,7 @@ function renderPreview() {
     </div>
     ${missing ? `<p class="warn">${missing === 1 ? 'Bei einer Zeile fehlt' : `Bei ${missing} Zeilen fehlt`} die Übersetzung. Trenne die Wörter mit – oder =.</p>` : ''}
     <div class="preview-table" role="table" aria-label="Erkannte Vokabeln">
-      <div class="pt-row pt-head" role="row"><span role="columnheader">${flag(d.lang)} ${L}</span><span role="columnheader">Deutsch</span></div>
+      <div class="pt-row pt-head" role="row"><span role="columnheader">${flag()} ${L}</span><span role="columnheader">Deutsch</span></div>
       ${res.rows.map((r) => `<div class="pt-row" role="row"><span role="cell" class="${r.foreign ? '' : 'missing'}">${esc(r.foreign) || 'fehlt'}</span><span role="cell" class="${r.german ? '' : 'missing'}">${esc(r.german) || 'fehlt'}</span></div>`).join('')}
     </div>`;
 }
@@ -314,14 +304,14 @@ function createSetFromDraft() {
     $('#vocab-input')?.focus();
     return;
   }
-  const name = d.name.trim() || autoName(rows, d.lang);
-  const set = newSet({ name, lang: d.lang, rows });
-  ui.draft = { text: '', lang: d.lang, langManual: false, name: '', swap: false };
+  const name = d.name.trim() || autoName(rows);
+  const set = newSet({ name, lang: 'en', rows });
+  ui.draft = { text: '', name: '', swap: false };
   openSet(set.id);
   startPictureFill(set);
 }
-function autoName(rows, lang) {
-  const first = rows.slice(0, 3).map((r) => core(r.foreign, lang)).join(', ');
+function autoName(rows) {
+  const first = rows.slice(0, 3).map((r) => core(r.foreign, 'en')).join(', ');
   return `${first}${rows.length > 3 ? ' …' : ''}`;
 }
 
@@ -340,6 +330,7 @@ function progressInfo(set) {
     match: (p.match && (p.match.pic != null || p.match.de != null))
       ? `${p.match.pic != null ? `Bild ${stars(p.match.pic)}` : ''} ${p.match.de != null ? `Deutsch ${stars(p.match.de)}` : ''}` : 'Noch nicht gespielt',
     speak: p.speak ? `${p.speak.correct} von ${p.speak.total} gleich richtig` : 'Noch nicht geübt',
+    dictation: p.dictation ? `${p.dictation.correct} von ${p.dictation.total} gleich richtig` : 'Noch nicht geübt',
     test: p.test ? `Bestes Ergebnis ${p.test.best} %` : 'Noch kein Test',
   };
 }
@@ -347,9 +338,9 @@ function progressInfo(set) {
 function viewSet(set) {
   const L = LANGS[set.lang].name;
   const info = progressInfo(set);
-  const step = (no, title, text, prog, actions, done) => `
-    <li class="step ${done ? 'done' : ''}">
-      <span class="step-no" aria-hidden="true">${no}</span>
+  const step = (no, title, text, prog, actions, done, ic) => `
+    <li class="step step-${no} ${done ? 'done' : ''}">
+      <span class="step-no" aria-hidden="true">${icon(ic)}<b>${no}</b></span>
       <div class="step-body">
         <h3>${title}</h3>
         <p>${text}</p>
@@ -362,7 +353,7 @@ function viewSet(set) {
   <section class="set-view">
     <header class="set-head">
       <div class="set-title-wrap">
-        <p class="eyebrow">${flag(set.lang)} ${L} · ${set.words.length} Vokabeln</p>
+        <p class="eyebrow">${flag()} ${L} · ${set.words.length} Vokabeln</p>
         <h1 class="set-title">${esc(set.name)}</h1>
       </div>
       <div class="set-tools">
@@ -373,14 +364,16 @@ function viewSet(set) {
 
     <ol class="path" aria-label="Lernweg">
       ${step(1, 'Lernkarten', 'Karten umdrehen und merken.', info.cards,
-        `<button class="btn primary" data-action="mode" data-mode="cards">Karten üben</button>`, !!p.cards)}
+        `<button class="btn primary" data-action="mode" data-mode="cards">Karten üben</button>`, !!p.cards, 'stack')}
       ${step(2, 'Zuordnen', 'Verbinde, was zusammengehört.', info.match,
         `<button class="btn primary" data-action="mode" data-mode="match" data-variant="pic">Bild ↔ ${L}</button>
-         <button class="btn secondary" data-action="mode" data-mode="match" data-variant="de">${L} ↔ Deutsch</button>`, !!p.match)}
+         <button class="btn secondary" data-action="mode" data-mode="match" data-variant="de">${L} ↔ Deutsch</button>`, !!p.match, 'link')}
       ${step(3, 'Aussprechen', 'Sag das Wort ins Mikrofon.', info.speak,
-        `<button class="btn primary" data-action="mode" data-mode="speak">Aussprache üben</button>`, !!p.speak)}
-      ${step(4, 'Test', 'Schreib die Wörter. Zeig, was du kannst.', info.test,
-        `<button class="btn primary" data-action="mode" data-mode="test">Test starten</button>`, !!p.test)}
+        `<button class="btn primary" data-action="mode" data-mode="speak">Aussprache üben</button>`, !!p.speak, 'mic')}
+      ${step(4, 'Hören & Schreiben', 'Hör das Wort und schreib es auf.', info.dictation,
+        `<button class="btn primary" data-action="mode" data-mode="dictation">Diktat üben</button>`, !!p.dictation, 'speaker')}
+      ${step(5, 'Test', 'Zeig, was du kannst.', info.test,
+        `<button class="btn primary" data-action="mode" data-mode="test">Test starten</button>`, !!p.test, 'pencil2')}
     </ol>
 
     <section class="deck" aria-labelledby="deck-title">
@@ -389,7 +382,7 @@ function viewSet(set) {
         <div class="deck-controls">
           <span class="label-inline">Bilder:</span>
           <div class="seg small" role="group" aria-label="Bildquelle">
-            ${[['picto', 'picto', 'Piktogramme'], ['clipart', 'brush', 'Cliparts'], ['photo', 'camera', 'Fotos'], ['emoji', 'smile', 'Emojis']].map(([k, ic, t]) => `<button class="seg-btn" data-action="pic-style" data-style="${k}" aria-pressed="${set.picStyle === k}">${icon(ic)}<span>${t}</span></button>`).join('')}
+            ${[['picto', 'picto', 'Piktogramme'], ['clipart', 'brush', 'Cliparts'], ['emoji', 'smile', 'Emojis']].map(([k, ic, t]) => `<button class="seg-btn" data-action="pic-style" data-style="${k}" aria-pressed="${set.picStyle === k}">${icon(ic)}<span>${t}</span></button>`).join('')}
           </div>
           <button class="btn small primary" data-action="review-pics">${icon('check')} Bilder prüfen</button>
           ${claudeSample ? `<button class="btn small secondary" data-action="draw-missing">${icon('brush')} Fehlende Bilder zeichnen</button>` : ''}
@@ -415,14 +408,15 @@ function picStatusText(set) {
   if (job) return `<span class="spinner" aria-hidden="true"></span> Bilder werden gesucht … ${job.done} von ${job.total}`;
   if (set.picStyle === 'picto' && net.arasaacDown) return 'Die Piktogramm-Sammlung ist gerade nicht erreichbar – deshalb siehst du Emojis. Tippe auf eine Karte, um ein Bild selbst zu wählen.';
   if (set.picStyle === 'clipart' && net.clipartDown) return 'Die Clipart-Sammlung ist gerade nicht erreichbar. Stattdessen siehst du Piktogramme oder Emojis. Tippe auf eine Karte, um ein Bild selbst zu wählen.';
-  if (set.picStyle !== 'emoji' && net.wikiDown) return 'Keine Verbindung zu Wikipedia – deshalb gibt es Emojis statt Fotos. Tippe auf eine Karte, um ein eigenes Bild zu wählen.';
   return 'Tipp: Prüfe die Bilder einmal mit „Bilder prüfen“, bevor du die Portion mit der Klasse teilst. Wörter ohne eindeutiges Bild lässt du einfach ohne Bild.';
 }
 
 function creditsText(set) {
-  return set.words.some((w) => w.pic?.kind === 'picto')
-    ? 'Piktogramme: Sergio Palao, <a href="https://arasaac.org" target="_blank" rel="noopener">ARASAAC</a>, Eigentum der Regierung von Aragón, Lizenz CC BY-NC-SA.'
-    : '';
+  const pics = set.words.map((w) => w.pic).filter((p) => p && p.kind === 'picto');
+  const parts = [];
+  if (pics.some((p) => /arasaac/.test(p.src))) parts.push('Piktogramme: Sergio Palao, <a href="https://arasaac.org" target="_blank" rel="noopener">ARASAAC</a>, Eigentum der Regierung von Aragón, Lizenz CC BY-NC-SA.');
+  if (pics.some((p) => !/arasaac/.test(p.src))) parts.push('Symbole über <a href="https://globalsymbols.com" target="_blank" rel="noopener">Global Symbols</a> (Lizenzen der jeweiligen Sammlung).');
+  return parts.join(' ');
 }
 
 function refreshDeck(set, word) {
@@ -451,7 +445,7 @@ function startPictureFill(set, force = false) {
 /* ---------------- Vokabeln bearbeiten ---------------- */
 function openEditDialog(set) {
   const row = (w) => `<div class="edit-row" data-wid="${w ? w.id : ''}">
-      <input class="e-foreign" type="text" value="${esc(w?.foreign || '')}" aria-label="${LANGS[set.lang].name}" lang="${set.lang}" spellcheck="false">
+      <input class="e-foreign" type="text" value="${esc(w?.foreign || '')}" aria-label="Englisch" lang="en" spellcheck="false">
       <input class="e-german" type="text" value="${esc(w?.german || '')}" aria-label="Deutsch" lang="de">
       <button type="button" class="icon-btn subtle" data-action="edit-remove-row" aria-label="Zeile löschen">${icon('trash')}</button>
     </div>`;
@@ -459,9 +453,8 @@ function openEditDialog(set) {
     <form id="edit-form" class="edit-form">
       <header class="modal-head"><h2>Vokabeln bearbeiten</h2><button type="button" class="icon-btn" data-action="close-modal" aria-label="Schließen">${icon('x')}</button></header>
       <label class="field" for="edit-name"><span class="label">Name</span><input id="edit-name" type="text" value="${esc(set.name)}" maxlength="80"></label>
-      <div class="field"><span class="label">Sprache</span><div id="edit-lang">${langSeg(set.lang, 'edit-lang')}</div></div>
       <div class="edit-table">
-        <div class="edit-row edit-head"><span>${LANGS[set.lang].name}</span><span>Deutsch</span><span></span></div>
+        <div class="edit-row edit-head"><span>Englisch</span><span>Deutsch</span><span></span></div>
         <div id="edit-rows">${set.words.map(row).join('')}</div>
       </div>
       <button type="button" class="btn small ghost" data-action="edit-add-row">${icon('plus')} Vokabel hinzufügen</button>
@@ -470,7 +463,6 @@ function openEditDialog(set) {
         <button type="submit" class="btn primary">Speichern</button>
       </footer>
     </form>`, { cls: 'wide', label: 'Vokabeln bearbeiten' });
-  ui.modal.editLang = set.lang;
   ui.modal.newRow = () => row(null);
   $('#edit-form').addEventListener('submit', (e) => { e.preventDefault(); saveEditDialog(set); });
 }
@@ -481,13 +473,11 @@ function saveEditDialog(set) {
   })).filter((r) => r.foreign || r.german);
   if (!rows.some((r) => r.foreign)) { toast('Mindestens eine Vokabel braucht ein Wort.', 'bad'); return; }
   const old = new Map(set.words.map((w) => [w.id, w]));
-  const langChanged = ui.modal.editLang !== set.lang;
-  set.lang = ui.modal.editLang;
   set.name = $('#edit-name').value.trim() || set.name;
   set.words = rows.map((r) => {
     const w = old.get(r.id);
     if (w) {
-      const changed = w.foreign !== r.foreign || w.german !== r.german || langChanged;
+      const changed = w.foreign !== r.foreign || w.german !== r.german;
       w.foreign = r.foreign; w.german = r.german;
       if (changed && !(w.pic && w.pic.manual)) { w.pic = null; w.picStatus = 'stale'; }
       return w;
@@ -510,7 +500,7 @@ function openPicDialog(set, word) {
       <button type="button" class="icon-btn" data-action="close-modal" aria-label="Schließen">${icon('x')}</button>
     </header>
     <div class="tabs" role="tablist">
-      ${[['picto', 'picto', 'Piktogramm'], ['clipart', 'brush', 'Clipart'], ['photo', 'camera', 'Fotos'], ...(claudeSample ? [['draw', 'brush', 'Zeichnen']] : []), ['emoji', 'smile', 'Emoji'], ['own', 'upload', 'Eigenes Bild']]
+      ${[['picto', 'picto', 'Piktogramm'], ['clipart', 'brush', 'Clipart'], ['emoji', 'smile', 'Emoji'], ...(claudeSample ? [['draw', 'brush', 'Zeichnen']] : []), ['own', 'upload', 'Eigenes Bild']]
         .map(([k, ic, t]) => `<button type="button" role="tab" class="tab" data-action="pic-tab" data-tab="${k}" aria-selected="${ui.picTab === k}">${icon(ic)}<span>${t}</span></button>`).join('')}
     </div>
     <div class="pd-body" id="pd-body"></div>
@@ -520,7 +510,7 @@ function openPicDialog(set, word) {
       <button type="button" class="btn primary" data-action="close-modal">Fertig</button>
     </footer>`, { cls: 'wide pic-dialog', label: `Bild für ${word.foreign}` });
   ui.modal.wid = word.id;
-  if (!claudeSample && ui.picTab === 'draw') ui.picTab = 'picto';
+  if ((!claudeSample && ui.picTab === 'draw') || ui.picTab === 'photo') ui.picTab = 'picto';
   refreshPicDialogHead(set, word);
   renderPicTab(set, word);
 }
@@ -556,103 +546,78 @@ async function renderPicTab(set, word) {
   if (!body) return;
   $$('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === ui.picTab)));
   const tab = ui.picTab;
-  const deCore = core(word.german, 'de'), foCore = core(word.foreign, set.lang);
+  const deCore = core(word.german, 'de'), foCore = core(word.foreign, 'en');
 
   if (tab === 'picto') {
     body.innerHTML = `
       <p class="muted">Piktogramme sind einfache, eindeutige Zeichnungen. Es gibt sie auch für Verben, Gefühle und Eigenschaften.</p>
       <form class="search-row" id="picto-search">
-        <input id="picto-q" type="search" value="${esc(deCore || foCore)}" aria-label="Suchbegriff (Deutsch, ${LANGS[set.lang].name} oder Englisch)">
+        <input id="picto-q" type="search" value="${esc(deCore || foCore)}" aria-label="Suchbegriff (Deutsch oder Englisch)">
         <button class="btn secondary" type="submit">${icon('search')} Suchen</button>
       </form>
+      <p class="label">ARASAAC</p>
       <div class="cands" id="picto-results"><p class="muted"><span class="spinner"></span> Suche Piktogramme …</p></div>
-      <p class="muted small">Piktogramme: Sergio Palao, <a href="https://arasaac.org" target="_blank" rel="noopener">ARASAAC</a> (CC BY-NC-SA)</p>`;
-    const show = (list) => {
-      const box = $('#picto-results');
+      <p class="label">Weitere Symbol-Sammlungen <small class="muted">(Global Symbols: Mulberry, Sclera, Tawasol u. a.)</small></p>
+      <div class="cands" id="gs-results"><p class="muted"><span class="spinner"></span> Suche Symbole …</p></div>
+      <p class="muted small">Piktogramme: Sergio Palao, <a href="https://arasaac.org" target="_blank" rel="noopener">ARASAAC</a> (CC BY-NC-SA) · Symbole: <a href="https://globalsymbols.com" target="_blank" rel="noopener">Global Symbols</a> (offene Lizenzen der jeweiligen Sammlung)</p>`;
+    const show = (boxId, list, down, empty) => {
+      const box = $(boxId);
       if (!box) return;
-      if (net.arasaacDown && !list.length) box.innerHTML = '<p class="muted">Die Piktogramm-Sammlung ist gerade nicht erreichbar. Bist du online? Du kannst auch ein Emoji oder ein eigenes Bild wählen.</p>';
-      else if (!list.length) box.innerHTML = '<p class="muted">Kein Piktogramm gefunden. Probiere ein anderes Wort, zum Beispiel ein einfacheres deutsches Wort.</p>';
+      if (down && !list.length) box.innerHTML = '<p class="muted">Diese Sammlung ist gerade nicht erreichbar. Bist du online?</p>';
+      else if (!list.length) box.innerHTML = `<p class="muted">${empty}</p>`;
       else box.innerHTML = list.map((c) => candHTML(c, 'picto')).join('');
-      $$('#picto-results .cand').forEach((c) => c.classList.toggle('chosen', c.dataset.src === word.pic?.src));
+      $$(`${boxId} .cand`).forEach((c) => c.classList.toggle('chosen', c.dataset.src === word.pic?.src));
+    };
+    const runGS = async (q) => {
+      net.gsDown = false;
+      const list = await globalSymbolsSearch(q, 18);
+      show('#gs-results', list, net.gsDown, 'Keine weiteren Symbole gefunden. Diese Sammlungen sind englisch beschriftet – probiere ein englisches Wort.');
     };
     net.arasaacDown = false;
     $('#picto-search').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const q = $('#picto-q').value.trim();
       net.arasaacDown = false;
       $('#picto-results').innerHTML = '<p class="muted"><span class="spinner"></span> Suche …</p>';
-      show(await pictoSearch($('#picto-q').value.trim(), set.lang));
+      $('#gs-results').innerHTML = '<p class="muted"><span class="spinner"></span> Suche …</p>';
+      runGS(q);
+      show('#picto-results', await pictoSearch(q), net.arasaacDown, 'Kein Piktogramm gefunden. Probiere ein anderes, einfacheres Wort.');
     });
+    runGS(foCore || deCore);
     const first = await pictoCandidates(word, set.lang, 12);
-    show(first.length ? first : await pictoSearch(deCore || foCore, set.lang));
+    show('#picto-results', first.length ? first : await pictoSearch(deCore || foCore), net.arasaacDown, 'Kein Piktogramm gefunden. Probiere ein anderes, einfacheres Wort.');
   } else if (tab === 'clipart') {
+    const kind = ui.clipKind || 'color';
     body.innerHTML = `
-      <p class="muted">Farbige Cliparts aus offenen Sammlungen (z. B. Microsoft Fluent Emoji, Google Noto). Am besten auf Englisch suchen.</p>
+      <p class="muted">Cliparts und Symbole aus offenen Sammlungen (z. B. Microsoft Fluent Emoji, Google Noto, OpenMoji, Material Symbols, Game Icons). Am besten auf Englisch suchen.</p>
       <form class="search-row" id="clip-search">
         <input id="clip-q" type="search" value="${esc(foCore)}" aria-label="Suchbegriff (Englisch)">
         <button class="btn secondary" type="submit">${icon('search')} Suchen</button>
       </form>
-      <div class="cands" id="clip-results"><p class="muted"><span class="spinner"></span> Suche Cliparts …</p></div>`;
+      <div class="seg small" role="group" aria-label="Art der Bilder">
+        <button type="button" class="seg-btn" data-action="clip-kind" data-kind="color" aria-pressed="${kind === 'color'}">Farbig</button>
+        <button type="button" class="seg-btn" data-action="clip-kind" data-kind="mono" aria-pressed="${kind === 'mono'}">Einfarbige Symbole</button>
+      </div>
+      <div class="cands" id="clip-results"><p class="muted"><span class="spinner"></span> Suche …</p></div>`;
     const runClip = async (q) => {
       const box = $('#clip-results');
       if (!box) return;
       net.clipartDown = false;
       box.innerHTML = '<p class="muted"><span class="spinner"></span> Suche …</p>';
-      const list = await clipartSearch(q, 36);
+      const list = await clipartSearch(q, 36, ui.clipKind || 'color');
       if (!$('#clip-results')) return;
       if (net.clipartDown && !list.length) box.innerHTML = '<p class="muted">Die Clipart-Sammlung ist gerade nicht erreichbar. Bist du online?</p>';
-      else if (!list.length) box.innerHTML = '<p class="muted">Nichts gefunden. Probiere ein anderes englisches Wort, z. B. „dog“ statt „puppy“.</p>';
+      else if (!list.length) box.innerHTML = `<p class="muted">Nichts gefunden. Probiere ein anderes englisches Wort${(ui.clipKind || 'color') === 'color' ? ' oder „Einfarbige Symbole“' : ''}.</p>`;
       else box.innerHTML = list.map((c) => candHTML(c, 'clipart')).join('');
       $$('#clip-results .cand').forEach((c) => c.classList.toggle('chosen', c.dataset.src === word.pic?.src));
     };
     $('#clip-search').addEventListener('submit', (e) => { e.preventDefault(); runClip($('#clip-q').value.trim()); });
-    const en = await englishTerm(word, set.lang);
-    if ($('#clip-q') && en) $('#clip-q').value = en;
-    runClip(en || foCore);
-  } else if (tab === 'photo') {
-    body.innerHTML = `
-      <form class="search-row" id="photo-search">
-        <input id="photo-q" type="search" value="${esc(foCore)}" aria-label="Suchbegriff">
-        <button class="btn secondary" type="submit">${icon('search')} Suchen</button>
-      </form>
-      <div class="seg small" role="group" aria-label="Art der Bilder">
-        <button type="button" class="seg-btn" data-action="photo-cat" data-cat="" aria-pressed="true">Alles</button>
-        <button type="button" class="seg-btn" data-action="photo-cat" data-cat="photograph" aria-pressed="false">Nur Fotos</button>
-        <button type="button" class="seg-btn" data-action="photo-cat" data-cat="illustration" aria-pressed="false">Nur Zeichnungen</button>
-      </div>
-      <div class="cands" id="photo-results"><p class="muted"><span class="spinner"></span> Suche …</p></div>
-      <p class="muted small">Fotos und Zeichnungen aus Wikipedia und <a href="https://openverse.org" target="_blank" rel="noopener">Openverse</a> (frei lizenziert). Am besten auf Englisch suchen.</p>
-      <button type="button" class="btn small ghost" data-action="photo-more">Noch mehr Fotos von Wikimedia Commons</button>`;
-    let cat = '';
-    const run = async (q, more = false) => {
-      const box = $('#photo-results');
-      if (!box) return;
-      net.wikiDown = false; net.openverseDown = false;
-      box.innerHTML = '<p class="muted"><span class="spinner"></span> Suche …</p>';
-      let list = [];
-      if (more) list = await commonsSearch(q);
-      else {
-        const wikiQ = q === ui.modal?.photoDefault ? (deCore || q) : q;
-        const [a, b, c] = await Promise.all([
-          cat === 'illustration' ? [] : wikiSearch('de', wikiQ, 6),
-          cat === 'illustration' ? [] : wikiSearch(set.lang === 'fr' ? 'fr' : 'en', q, 6),
-          openverseSearch(q, cat),
-        ]);
-        const seen = new Set();
-        list = [...a, ...b, ...c].filter((x) => (seen.has(x.src) ? false : seen.add(x.src)));
-      }
-      if (!$('#photo-results')) return;
-      if (!list.length && (net.wikiDown || net.openverseDown)) box.innerHTML = '<p class="muted">Die Bildersuche ist gerade nicht erreichbar. Bist du online? Du kannst auch ein Piktogramm, Clipart oder eigenes Bild wählen.</p>';
-      else if (!list.length) box.innerHTML = `<p class="muted">${net.openverseBusy ? 'Openverse braucht eine kurze Pause (zu viele Suchen). Versuch es in einer Minute noch einmal.' : 'Nichts gefunden. Probiere ein anderes Suchwort, zum Beispiel auf Englisch.'}</p>`;
-      else box.innerHTML = list.map((x) => candHTML(x, 'photo')).join('');
-      $$('#photo-results .cand').forEach((x) => x.classList.toggle('chosen', x.dataset.src === word.pic?.src));
+    ui.modal.clipKind = (k) => {
+      ui.clipKind = k;
+      $$('[data-action="clip-kind"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.kind === k)));
+      runClip($('#clip-q').value.trim());
     };
-    $('#photo-search').addEventListener('submit', (e) => { e.preventDefault(); run($('#photo-q').value.trim()); });
-    ui.modal.photoMore = () => run($('#photo-q').value.trim() || foCore, true);
-    ui.modal.photoCat = (c) => { cat = c; run($('#photo-q').value.trim()); };
-    const en = await englishTerm(word, set.lang);
-    if ($('#photo-q') && en) $('#photo-q').value = en;
-    ui.modal && (ui.modal.photoDefault = en || foCore);
-    run(en || foCore);
+    runClip(foCore || deCore);
   } else if (tab === 'draw') {
     body.innerHTML = `
       <p class="muted">Claude zeichnet ein Bild für diese Karte. Das dauert etwa 20 Sekunden.</p>
@@ -660,22 +625,51 @@ async function renderPicTab(set, word) {
       <button type="button" class="btn secondary" data-action="draw-one">${icon('brush')} Bild zeichnen lassen</button>`;
   } else if (tab === 'emoji') {
     const local = localPicture(word, set.lang);
+    const guess = [...(foCore ? searchEmojis(foCore, 0, 8, 3) : []), ...(deCore ? searchEmojis(deCore, 0, 8, 3) : [])];
+    const seen = new Set(local ? [local.src] : []);
+    const sugg = guess.filter((r) => (seen.has(r.e) ? false : seen.add(r.e))).slice(0, 10);
+    const cats = [['school', 'Schulwörter'], ...EMOJI_GROUPS.map(([g, t]) => [String(g), t])];
+    const cat = ui.emojiCat || 'school';
     body.innerHTML = `
       <form class="search-row" id="emoji-search" role="search">
-        <input id="emoji-q" type="search" placeholder="Suchen: Apfel, dog, chat …" aria-label="Emoji suchen" value="">
+        <input id="emoji-q" type="search" placeholder="Suchen: Apfel, traurig, teacher …" aria-label="Emoji suchen" value="">
         <input id="emoji-own" type="text" maxlength="16" placeholder="Eigenes Emoji" aria-label="Eigenes Emoji eingeben" class="emoji-own">
         <button class="btn secondary" type="submit">Nehmen</button>
       </form>
-      ${local ? `<p class="label">Vorschlag</p><div class="emoji-grid">${emojiBtn(local)}</div>` : ''}
-      <p class="label">Alle Bilder</p>
-      <div class="emoji-grid" id="emoji-grid"></div>`;
-    const draw = (q) => { $('#emoji-grid').innerHTML = searchPictureEntries(q, 90).map((e) => emojiBtn(entryToPic(e), e.de[0])).join('') || '<p class="muted">Kein passendes Emoji gefunden.</p>'; };
-    $('#emoji-q').addEventListener('input', (e) => draw(e.target.value));
+      ${local || sugg.length ? `<p class="label">Vorschläge</p><div class="emoji-grid">${local ? emojiBtn(local) : ''}${sugg.map((r) => emojiBtn({ kind: 'emoji', src: r.e }, r.de)).join('')}</div>` : ''}
+      <div class="chips" role="group" aria-label="Kategorie" id="emoji-cats">
+        ${cats.map(([k, t]) => `<button type="button" class="chip" data-action="emoji-cat" data-cat="${k}" aria-pressed="${cat === k}">${t}</button>`).join('')}
+      </div>
+      <div class="emoji-grid" id="emoji-grid"></div>
+      <p class="muted small">${EMOJIS.rows.length + PICTURES.entries.length} Emojis. Namen aus Unicode CLDR (emojibase, MIT). Wie die Emojis aussehen, hängt vom Gerät ab.</p>`;
+    const draw = (q) => {
+      const grid = $('#emoji-grid');
+      if (!grid) return;
+      const c = ui.emojiCat || 'school';
+      if (!q && c === 'school') {
+        grid.innerHTML = searchPictureEntries('', 600).map((e) => emojiBtn(entryToPic(e), e.de[0])).join('');
+        return;
+      }
+      const curated = q ? searchPictureEntries(q, 30).map((e) => emojiBtn(entryToPic(e), e.de[0])) : [];
+      const all = searchEmojis(q, +c || 0, 400).map((r) => emojiBtn({ kind: 'emoji', src: r.e }, r.de));
+      grid.innerHTML = [...curated, ...all].join('') || '<p class="muted">Kein passendes Emoji gefunden. Probiere ein anderes Wort, auf Deutsch oder Englisch.</p>';
+    };
+    $('#emoji-q').addEventListener('input', (e) => {
+      $$('#emoji-cats .chip').forEach((b) => b.setAttribute('aria-pressed', String(!e.target.value && b.dataset.cat === (ui.emojiCat || 'school'))));
+      draw(e.target.value);
+    });
     $('#emoji-search').addEventListener('submit', (e) => {
       e.preventDefault();
       const own = $('#emoji-own').value.trim();
       if (own) choosePic(set, word, { kind: 'emoji', src: own });
     });
+    ui.modal.emojiCat = (k) => {
+      ui.emojiCat = k;
+      const q = $('#emoji-q');
+      if (q) q.value = '';
+      $$('#emoji-cats .chip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cat === k)));
+      draw('');
+    };
     draw('');
   } else if (tab === 'own') {
     const q0 = foCore || deCore;
@@ -783,16 +777,14 @@ async function loadReview(set) {
     while (i < queue.length) {
       const w = queue[i++];
       if (ui.view !== 'pics') return;
-      const noun = isNounish(w, set.lang);
-      const [pictos, cliparts, photo] = await Promise.all([
+      const [pictos, symbols, cliparts] = await Promise.all([
         pictoCandidates(w, set.lang, 4).catch(() => []),
+        globalSymbolsSearch(core(w.foreign, 'en'), 2).catch(() => []),
         clipartCandidates(w, set.lang, 3).catch(() => []),
-        noun ? photoPicture(w, set.lang).catch(() => null) : null,
       ]);
       const local = localPicture(w, set.lang);
-      const list = [...pictos, ...cliparts];
+      const list = [...pictos, ...symbols, ...cliparts];
       if (local) list.push(local);
-      if (photo) list.push(photo);
       const seen = new Set();
       ui.reviewCands[w.id] = list.filter((c) => (seen.has(c.src) ? false : seen.add(c.src)));
       if (ui.view === 'pics') renderReviewRow(set, w);
@@ -870,7 +862,7 @@ function sanitizeSvg(text) {
 async function claudeDraw(word, lang) {
   const fo = core(word.foreign, lang), de = core(word.german, 'de');
   const prompt = `Draw a picture for a children's vocabulary flash card.
-Word: "${fo}" (${LANGS[lang].name === 'Englisch' ? 'English' : 'French'})${de ? `, German meaning: "${de}"` : ''}.
+Word: "${fo}" (English)${de ? `, German meaning: "${de}"` : ''}.
 Reply with ONE standalone SVG document and nothing else.
 Rules:
 - Start with <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
@@ -924,11 +916,9 @@ function openSettings() {
         </div>
       </div>
       ${canSpeak() ? `
-      <label class="field" for="voice-en"><span class="label">Stimme Englisch</span>${voiceSelect('en')}</label>
-      <label class="field" for="voice-fr"><span class="label">Stimme Französisch</span>${voiceSelect('fr')}</label>
+      <label class="field" for="voice-en"><span class="label">Stimme</span>${voiceSelect('en')}</label>
       <label class="field" for="set-rate"><span class="label">Sprechtempo</span><input type="range" id="set-rate" min="0.6" max="1.2" step="0.05" value="${s.rate}"></label>
-      <div class="row"><button type="button" class="btn small secondary" data-action="voice-test" data-lang="en">${icon('speaker')} Englisch testen</button>
-        <button type="button" class="btn small secondary" data-action="voice-test" data-lang="fr">${icon('speaker')} Französisch testen</button></div>`
+      <div class="row"><button type="button" class="btn small secondary" data-action="voice-test" data-lang="en">${icon('speaker')} Stimme testen</button></div>`
         : '<p class="warn">Dieser Browser kann nicht vorlesen.</p>'}
       ${phoneticSettingsHTML(s)}
       <div class="field"><span class="label">Mikrofon und Spracherkennung</span>
@@ -941,7 +931,7 @@ function openSettings() {
           : `<p class="muted small">${speechBrowserMissing ? 'Dieser Browser (Brave oder Opera) hat keine Spracherkennung. Am besten Chrome, Edge oder Safari benutzen.' : esc(micErrorText('not-supported', 'en'))}</p>`}
       </div>
       <hr>
-      <p class="muted small">Alle Vokabeln und Ergebnisse werden nur in diesem Browser gespeichert.</p>
+      <p class="muted small">${cloud.user ? `Angemeldet als <strong>${esc(cloud.user)}</strong>: Deine Portionen werden in deinem Konto gespeichert.` : 'Alle Vokabeln und Ergebnisse werden in diesem Browser gespeichert. Mit „Anmelden“ (oben) speicherst du sie in deinem Konto.'}</p>
       <button type="button" class="btn small danger-ghost" data-action="wipe">${icon('trash')} Alles löschen</button>
     </div>`, { label: 'Einstellungen' });
   const m = ui.modal.el;
@@ -969,14 +959,13 @@ function openSettings() {
 function phoneticSettingsHTML(s) {
   const c = { on: false, passMin: 60, ...(s.phonetic || {}) };
   return `<div class="field ph-box">
-    <span class="label">Lauterkennung (Versuch, nur Englisch)</span>
+    <span class="label">Lauterkennung (Versuch)</span>
     <p class="muted small">Prüft jeden einzelnen Laut statt nur das Wort. So fällt auch auf, wenn ein Wort so ausgesprochen wird, wie es geschrieben ist. Läuft ganz auf diesem Gerät, keine Aufnahme verlässt es. Beim ersten Mal werden ca. ${PH.MB} MB geladen und gespeichert. Auf älteren Handys kann es langsam sein.</p>
     <label class="switch"><input type="checkbox" id="ph-on" ${c.on ? 'checked' : ''}><span>Lauterkennung einschalten</span></label>
     <div class="row"><button type="button" class="btn small secondary" data-action="ph-load">${icon('upload')} Jetzt laden</button><span class="small" id="ph-status"></span></div>
     <div class="ph-progress" id="ph-progress-set" hidden><span id="ph-bar-set"></span></div>
     <label for="ph-min"><span class="small muted">Ein Wort zählt ab <strong id="ph-min-val">${c.passMin}</strong> von 100 Punkten</span></label>
     <input type="range" id="ph-min" min="30" max="90" step="5" value="${c.passMin}">
-    <p class="muted small">Für Französisch gibt es dieses Sprachmodell nicht. Dort prüft weiter die normale Spracherkennung.</p>
   </div>`;
 }
 
@@ -1001,7 +990,7 @@ async function fillMicSelect() {
     .map((d, i) => `<option value="${esc(d.deviceId)}" ${d.deviceId === cur ? 'selected' : ''}>${esc(d.label || `Mikrofon ${i + 1}`)}</option>`).join('');
 }
 
-/* ---------------- Teilen ---------------- */
+/* ---------------- Teilen: nur QR-Code ---------------- */
 async function openShare(set) {
   const text = set.words.map((w) => `${w.foreign} – ${w.german}`).join('\n');
   if (isFramed) {
@@ -1014,38 +1003,42 @@ async function openShare(set) {
   }
   const base = `${location.origin}${location.pathname}#v=`;
   const url = base + await encodeShare(set);
-  // Für den QR-Code: so kurz wie möglich. Notfalls ohne Foto-Adressen (die Kinder-Geräte suchen dann selbst).
-  let qrUrl = url, qrLite = false;
+  // Für den QR-Code: so kurz wie möglich. Notfalls ohne Bild-Adressen (die Kinder-Geräte suchen dann selbst).
+  let qrUrl = url;
   if (url.length > QR_COMFORT) {
     const lite = base + await encodeShare(set, { lite: true });
-    if (lite.length < url.length) { qrUrl = lite; qrLite = true; }
+    if (lite.length < url.length) qrUrl = lite;
   }
   const qr = makeQR(qrUrl);
   ui.share = { url, qrUrl, qr, name: set.name };
   const hasUploads = set.words.some((w) => w.pic && (w.pic.kind === 'upload' || w.pic.kind === 'drawn'));
   openModal(`
     <header class="modal-head"><h2>Mit der Klasse teilen</h2><button type="button" class="icon-btn" data-action="close-modal" aria-label="Schließen">${icon('x')}</button></header>
-    <div class="share-grid">
-      <div class="qr-box">
-        ${qr ? `<button type="button" class="qr-btn" data-action="qr-full" aria-label="QR-Code groß anzeigen">${qrSVG(qr)}</button>
-          <p class="small muted">${qr.getModuleCount() > 89 ? 'Viele Wörter – der Code ist fein. Am besten groß anzeigen.' : 'Mit der Handy- oder Tablet-Kamera scannen.'}</p>
-          <div class="row center">
-            <button type="button" class="btn primary" data-action="qr-full">${icon('grid')} Groß anzeigen</button>
-            <button type="button" class="btn ghost" data-action="qr-save">${icon('upload')} Als Bild</button>
-          </div>`
-          : '<p class="warn">Für einen QR-Code sind es zu viele Wörter. Teile den Link oder teile die Portion in zwei kleinere auf.</p>'}
-      </div>
-      <div class="link-box">
-        <p>Wer den QR-Code scannt oder den Link öffnet, bekommt die Portion „${esc(set.name)}“ mit allen Karten und Bildern.</p>
-        ${qrLite ? '<p class="muted small">Im QR-Code sind die Foto-Adressen weggelassen, damit er gut lesbar bleibt. Die Geräte der Kinder suchen diese Bilder selbst. Mit dem Link kommen alle Bilder mit.</p>' : ''}
-        <textarea id="share-url" class="share-box" rows="4" readonly>${esc(url)}</textarea>
-        <button type="button" class="btn secondary" data-action="copy" data-target="share-url">${icon('copy')} Link kopieren</button>
-        ${hasUploads ? '<p class="warn">Eigene Fotos sind zu groß für den Link. Dort erscheinen stattdessen automatisch gesuchte Bilder.</p>' : ''}
-        ${location.protocol === 'file:' ? '<p class="warn">Du hast Vokabelwelt als Datei geöffnet. Damit Link und QR-Code bei anderen funktionieren, muss Vokabelwelt im Internet liegen (zum Beispiel über GitHub Pages).</p>' : ''}
-        <details class="share-more"><summary>Nur die Wörter als Text</summary><textarea id="share-text" class="share-box" rows="6" readonly>${esc(text)}</textarea>
-          <button type="button" class="btn small ghost" data-action="copy" data-target="share-text">${icon('copy')} Text kopieren</button></details>
-      </div>
-    </div>`, { cls: 'wide', label: 'Teilen' });
+    <div class="qr-box">
+      ${qr ? `<button type="button" class="qr-btn" data-action="qr-full" aria-label="QR-Code groß anzeigen">${qrSVG(qr)}</button>
+        <p class="qr-caption">Mit der Handy- oder Tablet-Kamera scannen – dann ist „${esc(set.name)}“ mit allen Karten da.${qr.getModuleCount() > 89 ? ' Viele Wörter: Der Code ist fein, am besten groß anzeigen.' : ''}</p>
+        <div class="row center">
+          <button type="button" class="btn primary" data-action="qr-full">${icon('grid')} Groß anzeigen</button>
+          <button type="button" class="btn secondary" data-action="qr-save">${icon('upload')} Als Bild</button>
+          <button type="button" class="btn ghost" data-action="copy-link">${icon('link')} Link kopieren</button>
+        </div>`
+        : `<p class="warn">Für einen QR-Code sind es zu viele Wörter. Teile die Portion in zwei kleinere auf – oder kopiere den Link.</p>
+        <div class="row center"><button type="button" class="btn primary" data-action="copy-link">${icon('link')} Link kopieren</button></div>`}
+      ${hasUploads ? '<p class="muted small">Eigene Fotos sind zu groß für den QR-Code. Dort erscheinen bei den Kindern automatisch gesuchte Bilder.</p>' : ''}
+      ${location.protocol === 'file:' ? '<p class="warn">Du hast Vokabelwelt als Datei geöffnet. Damit der QR-Code bei anderen funktioniert, muss Vokabelwelt im Internet liegen (zum Beispiel über GitHub Pages).</p>' : ''}
+    </div>`, { cls: 'share-modal', label: 'Teilen' });
+}
+
+function copyText(text) {
+  const done = () => toast('Link kopiert.');
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy') ? done() : toast('Kopieren hat nicht geklappt.', 'bad'); } catch { toast('Kopieren hat nicht geklappt.', 'bad'); }
+    ta.remove();
+  };
+  try { navigator.clipboard.writeText(text).then(done, fallback); } catch { fallback(); }
 }
 
 /* ---------- QR-Code ---------- */

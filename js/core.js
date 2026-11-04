@@ -40,16 +40,14 @@ const similarity = (a, b) => (!a && !b ? 1 : 1 - lev(a, b) / Math.max(a.length, 
 
 const isFramed = (() => { try { return window.top !== window.self; } catch { return true; } })();
 
-/* ---------------- Sprachen ---------------- */
+/* ---------------- Sprache: Englisch ---------------- */
 const LANGS = {
   en: { name: 'Englisch', short: 'EN', adj: 'englische' },
-  fr: { name: 'Französisch', short: 'FR', adj: 'französische' },
 };
-const langCode = (lang) => (lang === 'fr' ? 'fr-FR' : (db.settings.accent === 'us' ? 'en-US' : 'en-GB'));
+const langCode = () => (db.settings.accent === 'us' ? 'en-US' : 'en-GB');
 
 const ARTICLE_RE = {
   en: /^(?:the|a|an|to)\s+/i,
-  fr: /^(?:(?:le|la|les|un|une|des|du|de la|se)\s+|(?:l|s|d)['’]\s*|de l['’]\s*)/i,
   de: /^(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|sich)\s+/i,
 };
 
@@ -103,44 +101,84 @@ function normAnswer(s) {
     .replace(/\s+/g, ' ').trim().replace(/[.!?]+$/, '').trim().toLowerCase();
 }
 
-/** Ohne Satzzeichen: „go – went – gone“ = „go went gone“, „sb.“ = „sb“ */
-const looseAnswer = (s) => normAnswer(s).replace(/[.,;:!?]/g, ' ').replace(/\s+/g, ' ').trim();
-
-/** Bewertet eine geschriebene Antwort: correct | almost | wrong */
-function checkAnswer(input, word, lang) {
-  const inp = looseAnswer(input);
-  const variants = answerVariants(word.foreign);
-  const display = word.foreign;
-  if (!inp) return { status: 'wrong', note: 'Keine Antwort.' };
-  for (const v of variants) if (looseAnswer(v) === inp) return { status: 'correct' };
-
-  for (const v of variants) {
-    const t = looseAnswer(v);
-    if (stripAccents(t) === stripAccents(inp)) return { status: 'almost', note: 'Fast! Achte auf die Akzente.' };
-  }
-  for (const v of variants) {
-    const t = looseAnswer(v);
-    const tc = stripArticle(t, lang), ic = stripArticle(inp, lang);
-    if (tc === ic || stripAccents(tc) === stripAccents(ic)) {
-      if (lang === 'en') {
-        return tc === ic ? { status: 'correct' } : { status: 'almost', note: 'Fast! Achte auf die Schreibweise.' };
-      }
-      const tHas = tc !== t, iHas = ic !== inp;
-      if (tHas && !iHas) return { status: 'almost', note: `Fast! Denk an den Artikel: „${display}“.` };
-      if (tHas && iHas) return { status: 'almost', note: 'Fast! Achte auf den Artikel.' };
-      if (tc !== ic) return { status: 'almost', note: 'Fast! Achte auf die Akzente.' };
-      return { status: 'correct' };
+/* ---------- Geschriebene Antworten prüfen ----------
+   Regeln: Abstände zählen nicht. „the/a/an/to“ sind freiwillig. „…“ wird ignoriert.
+   colo(u)r: beide Schreibweisen richtig. „colour / color“: beide schreiben (mit oder ohne /) –
+   nur eine davon ist fast richtig. Groß-/Kleinschreibung falsch → fast richtig mit Hinweis.
+   Fehlt bei einer Frage das Fragezeichen → fast richtig. Ein kleiner Tippfehler → fast richtig. */
+const ansPrep = (s) => String(s || '').normalize('NFC').replace(/[’‘`´]/g, "'").replace(/\.{2,}|…/g, ' ');
+/** Vergleichsschlüssel: ohne Satzzeichen, ohne Artikel am Anfang, ohne Abstände */
+function ansKey(s) {
+  let t = ansPrep(s).replace(/[?¿!.,;:"“”„«»()[\]/]/g, ' ').replace(/\s+[–—-]\s+/g, ' ').replace(/\s+/g, ' ').trim();
+  t = stripArticle(t, 'en');
+  return t.replace(/\s+/g, '');
+}
+/** Alternativen einer Lösung: „colour / color“ → [colour, color] */
+const answerAlts = (text) => String(text || '').split(/\s*[\/;]\s*/).map((s) => s.trim()).filter(Boolean);
+const LEVELS = ['exact', 'case', 'accent', 'typo'];
+/** Wie nah ist die Eingabe an der Lösung? exact | case | accent | typo | null */
+function compareKeys(ik, tk) {
+  if (!ik || !tk) return null;
+  if (ik === tk) return 'exact';
+  const il = ik.toLowerCase(), tl = tk.toLowerCase();
+  if (il === tl) return 'case';
+  const ia = stripAccents(il), ta = stripAccents(tl);
+  if (ia === ta) return 'accent';
+  const d = lev(ia, ta);
+  if ((ta.length >= 4 && d === 1) || (ta.length >= 9 && d === 2)) return 'typo';
+  return null;
+}
+const betterLevel = (a, b) => (a == null ? b : b == null ? a : LEVELS.indexOf(a) <= LEVELS.indexOf(b) ? a : b);
+const worseLevel = (a, b) => (a == null || b == null ? null : LEVELS.indexOf(a) >= LEVELS.indexOf(b) ? a : b);
+function permutations(arr) {
+  if (arr.length <= 1 || arr.length > 5) return [arr];
+  return arr.flatMap((x, i) => permutations([...arr.slice(0, i), ...arr.slice(i + 1)]).map((p) => [x, ...p]));
+}
+/** Eine Eingabe gegen eine Alternative (mit Klammer-Varianten) */
+function matchAlt(input, alt) {
+  const ik = ansKey(input);
+  return answerVariants(alt).reduce((best, f) => betterLevel(best, compareKeys(ik, ansKey(f))), null);
+}
+/** Alle Alternativen geschrieben? Mit Trennzeichen („colour / color“, „colour, color“) oder ohne („colour color“) */
+function matchAllAlts(input, alts) {
+  let best = null;
+  const parts = ansPrep(input).split(/[\/,;]+/).map((s) => s.trim()).filter(Boolean);
+  if (parts.length === alts.length) {
+    for (const perm of permutations(alts)) {
+      let lvl = 'exact';
+      perm.forEach((a, i) => { lvl = worseLevel(lvl, matchAlt(parts[i], a)); });
+      best = betterLevel(best, lvl);
     }
   }
-  for (const v of variants) {
-    const tc = stripAccents(stripArticle(looseAnswer(v), lang));
-    const ic = stripAccents(stripArticle(inp, lang));
-    const d = lev(tc, ic);
-    if ((tc.length >= 4 && d === 1) || (tc.length >= 9 && d === 2)) {
-      return { status: 'almost', note: 'Fast! Ein kleiner Rechtschreibfehler.' };
+  if (best !== 'exact') {
+    const ik = ansKey(input);
+    for (const perm of permutations(alts)) {
+      const forms = perm.reduce((acc, a) => acc.flatMap((pre) => answerVariants(a).map((f) => pre + ansKey(f))), ['']);
+      forms.slice(0, 64).forEach((fk) => { best = betterLevel(best, compareKeys(ik, fk)); });
     }
   }
-  return { status: 'wrong' };
+  return best;
+}
+
+/** Bewertet eine geschriebene Antwort: { status: correct | almost | wrong, note } */
+function checkAnswer(input, word) {
+  if (!ansKey(input)) return { status: 'wrong', note: 'Keine Antwort.' };
+  const alts = answerAlts(word.foreign);
+  if (!alts.length) return { status: 'wrong' };
+  let lvl = alts.length > 1 ? matchAllAlts(input, alts) : null;
+  let partial = false;
+  if (lvl == null) {
+    lvl = alts.reduce((best, a) => betterLevel(best, matchAlt(input, a)), null);
+    partial = lvl != null && alts.length > 1;
+  }
+  if (lvl == null) return { status: 'wrong' };
+  const notes = [];
+  if (partial) notes.push(`Es gibt ${alts.length === 2 ? 'zwei' : 'mehrere'} Lösungen: „${alts.join(' / ')}“. Schreib ${alts.length === 2 ? 'beide' : 'alle'}.`);
+  if (lvl === 'case') notes.push('Achte auf die Groß- und Kleinschreibung.');
+  if (lvl === 'accent') notes.push('Achte auf die Schreibweise.');
+  if (lvl === 'typo') notes.push('Ein kleiner Rechtschreibfehler.');
+  if (/\?/.test(word.foreign) && !/\?/.test(input)) notes.push('Denk an das Fragezeichen.');
+  return notes.length ? { status: 'almost', note: `Fast! ${notes.join(' ')}` } : { status: 'correct' };
 }
 
 /* ---------- Aussprache: Vergleich mit dem erkannten Text ---------- */
@@ -155,17 +193,9 @@ const HOMOPHONES = {
     ['way', 'weigh'], ['knot', 'not'], ['berry', 'bury'], ['heel', 'heal'], ['paws', 'pause'], ['toe', 'tow'],
     ['break', 'brake'], ['board', 'bored'], ['made', 'maid'], ['tide', 'tied'], ['steel', 'steal'], ['fair', 'fare'],
     ['cereal', 'serial'], ['dear', 'deer'], ['night', 'nite'], ['tea', 'tee'], ['jeans', 'genes'], ['ok', 'okay']],
-  fr: [['vert', 'verre', 'vers', 'ver'], ['mer', 'mere', 'maire'], ['cent', 'sans', 'sang'], ['pain', 'pin'],
-    ['cou', 'coup', 'cout'], ['sel', 'selle'], ['foie', 'fois', 'foi'], ['mai', 'mais', 'mes'], ['ou', 'où'],
-    ['eau', 'haut', 'oh'], ['vingt', 'vin', 'vain'], ['cinq', 'saint', 'sein'], ['deux', 'de'], ['sept', 'cette', 'set'],
-    ['huit', 'wee'], ['un', 'hein'], ['dix', 'dis'], ['six', 'sis'], ['nez', 'ne'], ['lait', 'les', 'laid'],
-    ['chaine', 'chene'], ['conte', 'compte', 'comte'], ['faim', 'fin'], ['pere', 'paire', 'perd']],
 };
-const homophoneMap = {};
-for (const lang of Object.keys(HOMOPHONES)) {
-  homophoneMap[lang] = new Map();
-  for (const group of HOMOPHONES[lang]) for (const w of group) homophoneMap[lang].set(stripAccents(w), stripAccents(group[0]));
-}
+const homophoneMap = { en: new Map() };
+for (const group of HOMOPHONES.en) for (const w of group) homophoneMap.en.set(w, group[0]);
 
 function normSpeech(s, lang, keepArticle = false) {
   let t = String(s || '').toLowerCase().normalize('NFC').replace(/[’‘`´]/g, "'");
@@ -178,8 +208,6 @@ function normSpeech(s, lang, keepArticle = false) {
   if (hm) t = t.split(' ').map((w) => hm.get(w) || w).join(' ');
   return t;
 }
-
-const frArticle = (normWithArticle) => (normWithArticle.match(/^(de la|de l|le|la|les|l|un|une|des|du)\s/) || [])[1] || '';
 
 /**
  * Vergleicht das Erkannte mit dem Zielwort – einfach und ausgewogen:
@@ -203,24 +231,14 @@ function speechMatch(alternatives, word, lang) {
   const ok = targets.some((t) => h === t || near(t));
   const score = Math.max(0, ...targets.map((t) => similarity(h, t)));
   if (!ok) return { ok: false, score, heard };
-  // Französisch: Wird ein Artikel gesagt, muss es der richtige sein (le ≠ la).
-  if (lang === 'fr') {
-    const hArt = frArticle(normSpeech(heard, lang, true));
-    const tArts = variants.map((v) => frArticle(normSpeech(v, lang, true))).filter(Boolean);
-    if (hArt && tArts.length && !tArts.includes(hArt)) return { ok: false, score, heard, note: 'article' };
-  }
   return { ok: true, score: 1, heard };
 }
 
 /** Text, der vorgelesen wird (Abkürzungen ausgeschrieben) */
-function ttsText(text, lang) {
-  let s = stripParens(text);
-  if (lang === 'en') {
-    s = s.replace(/\bsb\.?'s\b/gi, "somebody's").replace(/\bsb\b\.?/gi, 'somebody')
-      .replace(/\bsth\b\.?/gi, 'something').replace(/\bsw\b\.?/gi, 'somewhere');
-  } else if (lang === 'fr') {
-    s = s.replace(/\bqqn\b\.?|\bqn\b\.?/gi, "quelqu'un").replace(/\bqqch\b\.?|\bqch\b\.?|\bqc\b\.?/gi, 'quelque chose');
-  }
+function ttsText(text) {
+  const s = stripParens(text).replace(/\.{2,}|…/g, ' ')
+    .replace(/\bsb\.?'s\b/gi, "somebody's").replace(/\bsb\b\.?/gi, 'somebody')
+    .replace(/\bsth\b\.?/gi, 'something').replace(/\bsw\b\.?/gi, 'somewhere');
   return s.replace(/\s*\/\s*/g, ', ').replace(/\s+[–—-]\s+/g, ', ').replace(/\s+/g, ' ').trim();
 }
 
@@ -255,15 +273,13 @@ function splitLine(line) {
 
 const DE_HINT = /\b(der|die|das|ein|eine|sich|und|nicht|mit|von|zu)\b|[äöüß]/i;
 const EN_HINT = /\b(the|a|an|to|of|and|is|sb|sth)\b|\b\w+(ing|tion|ous|ly)\b|'s\b/i;
-const FR_HINT = /\b(le|la|les|un|une|des|du|et|est|qn|qc)\b|\bl['’]|[éèêàçùûôîœ]/i;
 
 function langScore(text) {
   return { de: (text.match(new RegExp(DE_HINT, 'gi')) || []).length,
-    en: (text.match(new RegExp(EN_HINT, 'gi')) || []).length,
-    fr: (text.match(new RegExp(FR_HINT, 'gi')) || []).length };
+    en: (text.match(new RegExp(EN_HINT, 'gi')) || []).length };
 }
 
-/** Liefert { rows: [{foreign, german}], swapped, lang } */
+/** Liefert { rows: [{foreign, german}], germanFirst } */
 function parseVocab(text, opts = {}) {
   const raw = String(text || '').split(/\r?\n/)
     .map((l) => l.replace(/^\s*(?:\d+\s*[.)]|[-•*·▪●◦–])\s+/, '').trim())
@@ -272,30 +288,27 @@ function parseVocab(text, opts = {}) {
   rows = rows.filter((r) => r[0] || r[1]);
 
   // Welche Spalte ist Deutsch?
-  let col0 = { de: 0, en: 0, fr: 0 }, col1 = { de: 0, en: 0, fr: 0 };
+  const col0 = { de: 0, en: 0 }, col1 = { de: 0, en: 0 };
   for (const [a, b] of rows) {
     const sa = langScore(a), sb = langScore(b || '');
-    for (const k of ['de', 'en', 'fr']) { col0[k] += sa[k]; col1[k] += sb[k]; }
+    for (const k of ['de', 'en']) { col0[k] += sa[k]; col1[k] += sb[k]; }
     const capA = /^[A-ZÄÖÜ]/.test(stripArticle(a, 'de')), capB = /^[A-ZÄÖÜ]/.test(stripArticle(b || '', 'de'));
     if (capB && !capA) col1.de += 0.3;
     if (capA && !capB && b) col0.de += 0.3;
   }
-  let germanFirst = col0.de > col1.de && (col1.en + col1.fr) >= (col0.en + col0.fr);
+  let germanFirst = col0.de > col1.de && col1.en >= col0.en;
   if (opts.swap) germanFirst = !germanFirst;
-  const foreignScore = germanFirst ? col1 : col0;
-  const detected = foreignScore.fr > foreignScore.en ? 'fr' : (foreignScore.en > 0 ? 'en' : null);
 
   return {
     rows: rows.map(([a, b]) => (germanFirst ? { foreign: b || '', german: a } : { foreign: a, german: b || '' }))
       .filter((r) => r.foreign || r.german),
     germanFirst,
-    detected,
   };
 }
 
 /* ---------------- Speicher ---------------- */
 const STORE_KEY = 'vokabelwelt.v1';
-const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '', phonetic: { on: false, passMin: 60 } };
+const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '' }, rate: 0.9, micId: '', phonetic: { on: false, passMin: 60 } };
 let db = { sets: [], settings: structuredClone(DEFAULT_SETTINGS) };
 
 function loadDB() {
@@ -305,13 +318,16 @@ function loadDB() {
     const d = JSON.parse(raw);
     db = { ...db, ...d, settings: { ...structuredClone(DEFAULT_SETTINGS), ...(d.settings || {}) } };
     ['speechLevel', 'speechLevelChosen', 'minConf', 'azure'].forEach((k) => delete db.settings[k]); // alte Einstellungen aufräumen
+    db.settings.voice = { en: db.settings.voice?.en || '' };
     db.sets = (db.sets || []).filter((s) => s && Array.isArray(s.words));
     db.sets.forEach((s) => {
+      s.lang = 'en'; // Vokabelwelt ist nur noch für Englisch
       s.words.forEach((w) => {
         if (w.picStatus === 'pending') w.picStatus = 'stale';
         if (w.pic && w.pic.kind === 'ai') { w.pic = null; w.picStatus = 'stale'; } // KI-Bilder gibt es nicht mehr
+        if (w.pic && w.pic.kind === 'photo' && !w.pic.manual) { w.pic = null; w.picStatus = 'stale'; } // keine Fotosuche mehr
       });
-      if (s.picStyle === 'ai') s.picStyle = 'picto';
+      if (s.picStyle === 'ai' || s.picStyle === 'photo') s.picStyle = 'picto';
       // Ältere Portionen: Fotos waren Standard. Jetzt sind Piktogramme Standard (eindeutiger).
       if (!s.picVersion) {
         s.picVersion = 2;
@@ -325,6 +341,7 @@ function loadDB() {
 }
 let saveWarned = false;
 function saveNow() {
+  if (typeof onDbSaved === 'function') onDbSaved(); // angemeldet: auch ins Konto (js/cloud.js)
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(db));
     return true;
@@ -353,20 +370,47 @@ function newSet({ name, lang, rows, picStyle = 'picto' }) {
 /* ---------------- Bilder ---------------- */
 const PICTURES = (() => {
   const entries = [];
-  const maps = { en: new Map(), fr: new Map(), de: new Map(), deExact: new Map() };
+  const maps = { en: new Map(), de: new Map(), deExact: new Map() };
   for (const line of window.PICTURE_DATA.split('\n')) {
     const parts = line.split('|');
-    if (parts.length < 4) continue;
-    const [pic, en, fr, de] = parts.map((p) => p.trim());
-    const entry = { pic, en: en.split(','), fr: fr.split(','), de: de.split(',') };
+    if (parts.length < 3) continue;
+    const [pic, en, de] = parts.map((p) => p.trim());
+    const entry = { pic, en: en.split(','), de: de.split(',') };
     entries.push(entry);
     const add = (map, key) => { key = key.trim(); if (key && !map.has(key)) map.set(key, entry); };
     entry.en.forEach((k) => { add(maps.en, k.toLowerCase()); add(maps.en, stripArticle(k.toLowerCase(), 'en')); });
-    entry.fr.forEach((k) => { add(maps.fr, k.toLowerCase()); add(maps.fr, stripAccents(k.toLowerCase())); add(maps.fr, stripArticle(k.toLowerCase(), 'fr')); });
     entry.de.forEach((k) => { add(maps.deExact, k.trim()); add(maps.de, k.toLowerCase()); });
   }
   return { entries, maps };
 })();
+
+/* Großer Emoji-Katalog (alle gängigen Emojis, auch Personen und Gefühle) */
+const EMOJI_GROUPS = [[0, 'Gesichter'], [1, 'Menschen'], [3, 'Tiere & Natur'], [4, 'Essen'], [5, 'Reisen & Orte'], [6, 'Aktivitäten'], [7, 'Gegenstände'], [8, 'Symbole'], [9, 'Flaggen']];
+const EMOJIS = (() => {
+  const rows = (window.EMOJI_CATALOG || []).map(([e, g, de, deTags, en, enTags]) => ({
+    e, g, de, en,
+    words: [de, en, ...String(deTags || '').split(','), ...String(enTags || '').split(',')].map((k) => stripAccents(k.trim().toLowerCase())).filter(Boolean),
+  }));
+  const byName = new Map();
+  rows.forEach((r) => {
+    if (r.g === 9) return; // Flaggen nicht automatisch
+    [r.de, r.en].forEach((n) => { const k = String(n || '').toLowerCase(); if (k && !byName.has(k)) byName.set(k, r); });
+  });
+  return { rows, byName };
+})();
+
+/** Emojis suchen (Deutsch oder Englisch). Ohne Suchwort: eine Gruppe. */
+function searchEmojis(query, group = 0, limit = 400, minScore = 1) {
+  const q = stripAccents(String(query || '').trim().toLowerCase());
+  if (!q) return EMOJIS.rows.filter((r) => r.g === group).slice(0, limit);
+  const hits = [];
+  for (const r of EMOJIS.rows) {
+    const name = stripAccents(`${r.de} ${r.en}`.toLowerCase());
+    const score = r.words[0] === q || r.words[1] === q ? 4 : r.words.includes(q) ? 3 : name.includes(q) ? 2 : r.words.some((w) => w.startsWith(q)) ? 1 : 0;
+    if (score >= minScore) hits.push([score, r]);
+  }
+  return hits.sort((a, b) => b[0] - a[0]).slice(0, limit).map((h) => h[1]);
+}
 
 const entryToPic = (entry) => (entry.pic.startsWith('#')
   ? { kind: 'color', src: entry.pic }
@@ -387,7 +431,7 @@ function numberPic(keys, lang) {
 }
 
 /** Bild aus dem eingebauten Wörterbuch (Emoji, Farbe, Zahl) – sofort und offline */
-function localPicture(word, lang) {
+function localPicture(word, lang = 'en') {
   const deKeys = lookupKeys(word.german, 'de');
   const foKeys = lookupKeys(word.foreign, lang);
   const num = numberPic([...foKeys, ...deKeys], lang);
@@ -395,13 +439,14 @@ function localPicture(word, lang) {
   const { maps } = PICTURES;
   for (const k of deKeys) if (maps.deExact.has(k)) return entryToPic(maps.deExact.get(k));
   for (const k of deKeys) if (maps.de.has(k.toLowerCase())) return entryToPic(maps.de.get(k.toLowerCase()));
-  const fm = maps[lang];
-  if (fm) {
-    for (const k of foKeys) {
-      const low = k.toLowerCase();
-      if (fm.has(low)) return entryToPic(fm.get(low));
-      if (fm.has(stripAccents(low))) return entryToPic(fm.get(stripAccents(low)));
-    }
+  for (const k of foKeys) {
+    const low = k.toLowerCase();
+    if (maps.en.has(low)) return entryToPic(maps.en.get(low));
+  }
+  // Großer Katalog: nur wenn der Emoji-Name genau dem Wort entspricht
+  for (const k of [...deKeys, ...foKeys]) {
+    const r = EMOJIS.byName.get(k.toLowerCase());
+    if (r) return { kind: 'emoji', src: r.e };
   }
   return null;
 }
@@ -411,7 +456,7 @@ function searchPictureEntries(query, limit = 60) {
   if (!q) return PICTURES.entries.filter((e) => !e.pic.startsWith('#')).slice(0, limit);
   const hits = [];
   for (const e of PICTURES.entries) {
-    const all = [...e.en, ...e.fr, ...e.de].map((k) => stripAccents(k.toLowerCase()));
+    const all = [...e.en, ...e.de].map((k) => stripAccents(k.toLowerCase()));
     const score = all.some((k) => k === q) ? 3 : all.some((k) => k.startsWith(q)) ? 2 : all.some((k) => k.includes(q)) ? 1 : 0;
     if (score) hits.push([score, e]);
   }
@@ -419,22 +464,16 @@ function searchPictureEntries(query, limit = 60) {
 }
 
 /** Ist das Wort vermutlich ein Nomen? (Deutsch groß geschrieben oder mit Artikel) */
-function isNounish(word, lang) {
+function isNounish(word) {
   const de = stripParens(word.german || '');
   if (de) {
     if (/^(der|die|das|ein|eine)\s/i.test(de)) return true;
     return /^[A-ZÄÖÜ]/.test(stripArticle(de, 'de'));
   }
-  const fo = stripParens(word.foreign || '');
-  if (lang === 'en') return /^(the|a|an)\s/i.test(fo);
-  if (lang === 'fr') return /^(le|la|les|un|une|des)\s|^l['’]/i.test(fo);
-  return true;
+  return /^(the|a|an)\s/i.test(stripParens(word.foreign || ''));
 }
 
-/* --- Wikipedia / Wikimedia (CORS mit origin=*) --- */
-const net = { wikiDown: false, arasaacDown: false, arasaacBase: 0, clipartDown: false, openverseDown: false, openverseBusy: false };
-const wikiCache = new Map();
-const BAD_IMAGE = /(map|karte|locator|location|flag|flagge|logo|wappen|coat[_ ]of[_ ]arms|blason|diagram|signature|unterschrift|icon|symbol|disambig|commons-logo|question_book|ambox)/i;
+const net = { arasaacDown: false, arasaacBase: 0, clipartDown: false, gsDown: false };
 
 async function fetchJSON(url, timeout = 9000) {
   const ctrl = new AbortController();
@@ -444,97 +483,6 @@ async function fetchJSON(url, timeout = 9000) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return await r.json();
   } finally { clearTimeout(timer); }
-}
-
-async function wikiApi(lang, params) {
-  if (net.wikiDown) return null;
-  const host = lang === 'commons' ? 'commons.wikimedia.org' : `${lang}.wikipedia.org`;
-  const qs = new URLSearchParams({ action: 'query', format: 'json', formatversion: '2', origin: '*', ...params });
-  const url = `https://${host}/w/api.php?${qs}`;
-  if (wikiCache.has(url)) return wikiCache.get(url);
-  const p = fetchJSON(url).catch((e) => {
-    if (e instanceof TypeError || e.name === 'AbortError') net.wikiDown = true;
-    wikiCache.delete(url);
-    return null;
-  });
-  wikiCache.set(url, p);
-  return p;
-}
-
-const fileUrl = (lang, name) => `https://${lang}.wikipedia.org/wiki/File:${encodeURIComponent(name)}`;
-
-/** Leitbild eines Wikipedia-Artikels (+ englischer Titel über Sprachlinks) */
-async function wikiPage(lang, title) {
-  if (!title) return null;
-  const r = await wikiApi(lang, {
-    titles: title, redirects: '1', prop: 'pageimages|pageprops|langlinks',
-    piprop: 'thumbnail|name', pithumbsize: '640', ppprop: 'disambiguation', lllang: 'en',
-  });
-  const page = r?.query?.pages?.[0];
-  if (!page || page.missing || page.invalid) return null;
-  const disamb = page.pageprops && 'disambiguation' in page.pageprops;
-  const en = page.langlinks?.[0]?.title || (lang === 'en' ? page.title : null);
-  const thumb = page.thumbnail?.source;
-  const ok = thumb && !disamb && !BAD_IMAGE.test(page.pageimage || '');
-  return {
-    title: page.title, disamb, en,
-    thumb: ok ? thumb : null,
-    credit: ok ? { text: `Wikipedia: ${page.title}`, url: fileUrl(lang, page.pageimage) } : null,
-  };
-}
-
-async function wikiSearch(lang, query, limit = 8) {
-  const r = await wikiApi(lang, {
-    generator: 'search', gsrsearch: query, gsrlimit: String(limit), gsrnamespace: '0',
-    prop: 'pageimages|pageprops', piprop: 'thumbnail|name', pithumbsize: '480', ppprop: 'disambiguation',
-  });
-  const pages = (r?.query?.pages || []).slice().sort((a, b) => (a.index || 0) - (b.index || 0));
-  return pages
-    .filter((p) => p.thumbnail?.source && !BAD_IMAGE.test(p.pageimage || '') && !(p.pageprops && 'disambiguation' in p.pageprops))
-    .map((p) => ({ src: p.thumbnail.source, title: p.title, credit: { text: `Wikipedia: ${p.title}`, url: fileUrl(lang, p.pageimage) } }));
-}
-
-async function commonsSearch(query, limit = 18) {
-  const r = await wikiApi('commons', {
-    generator: 'search', gsrsearch: `${query} filetype:bitmap`, gsrlimit: String(limit), gsrnamespace: '6',
-    prop: 'imageinfo', iiprop: 'url', iiurlwidth: '480',
-  });
-  const pages = (r?.query?.pages || []).slice().sort((a, b) => (a.index || 0) - (b.index || 0));
-  return pages
-    .filter((p) => p.imageinfo?.[0]?.thumburl && !BAD_IMAGE.test(p.title))
-    .map((p) => ({ src: p.imageinfo[0].thumburl, title: p.title.replace(/^File:|\.\w+$/g, ''),
-      credit: { text: 'Wikimedia Commons', url: p.imageinfo[0].descriptionurl } }));
-}
-
-async function photoPicture(word, lang) {
-  const de = core(word.german, 'de'), fo = core(word.foreign, lang);
-  const tries = [];
-  if (de) tries.push(['de', de]);
-  if (fo) tries.push([lang, fo]);
-  for (const [wl, t] of tries) {
-    const p = await wikiPage(wl, t);
-    if (p?.thumb) return { kind: 'photo', src: p.thumb, credit: p.credit };
-    if (net.wikiDown) return null;
-  }
-  for (const [wl, t] of tries) {
-    const list = await wikiSearch(wl, t, 4);
-    if (list.length) return { kind: 'photo', src: list[0].src, credit: list[0].credit };
-    if (net.wikiDown) return null;
-  }
-  return null;
-}
-
-/** Englischer Begriff (für Clipart- und Openverse-Suche, die vor allem englisch beschriftet sind) */
-async function englishTerm(word, lang) {
-  const fo = core(word.foreign, lang);
-  if (lang === 'en') return fo;
-  const de = core(word.german, 'de');
-  for (const [l, t] of [[lang, fo], ['de', de]]) {
-    if (!t) continue;
-    const p = await wikiPage(l, t);
-    if (p?.en && !p.disamb) return p.en.replace(/\s*\([^)]*\)$/, '').toLowerCase();
-  }
-  return de ? `${de} (${fo})` : fo;
 }
 
 /* --- ARASAAC-Piktogramme: eindeutige, einheitlich gezeichnete Bilder (auch für Verben und Gefühle) ---
@@ -592,32 +540,81 @@ async function pictoCandidates(word, lang, limit = 8) {
 }
 
 /** Freie Suche im Bild-Dialog */
-async function pictoSearch(query, lang) {
-  const [a, b, c] = await Promise.all([arasaacQuery('de', query, 'search'), arasaacQuery(lang, query, 'search'), arasaacQuery('en', query, 'search')]);
+async function pictoSearch(query) {
+  const [a, b] = await Promise.all([arasaacQuery('de', query, 'search'), arasaacQuery('en', query, 'search')]);
   const seen = new Set();
-  return [...a, ...b, ...c].filter((x) => (seen.has(x._id) ? false : seen.add(x._id))).slice(0, 24).map(toPicto);
+  return [...a, ...b].filter((x) => (seen.has(x._id) ? false : seen.add(x._id))).slice(0, 24).map(toPicto);
 }
 
-/* --- Cliparts: farbige, offene Emoji- und Clipart-Sammlungen über Iconify (ohne Anmeldung) --- */
+/* --- Global Symbols: frei nutzbare Symbol-Sammlungen für Unterstützte Kommunikation
+   (z. B. Mulberry, Sclera, Tawasol, Blissymbolics) über https://globalsymbols.com --- */
+const GS_CREDIT = { text: 'Symbol: Global Symbols', url: 'https://globalsymbols.com' };
+const gsCache = new Map();
+async function globalSymbolsSearch(query, limit = 12) {
+  query = String(query || '').trim();
+  if (!query || net.gsDown) return [];
+  const key = `${query.toLowerCase()}|${limit}`;
+  if (gsCache.has(key)) return gsCache.get(key);
+  const p = (async () => {
+    const qs = new URLSearchParams({ query, language: 'en', language_iso_format: '639-1', limit: String(Math.max(limit * 2, 20)) });
+    try {
+      const data = await fetchJSON(`https://globalsymbols.com/api/v1/labels/search/?${qs}`);
+      const seen = new Set();
+      return (Array.isArray(data) ? data : [])
+        .map((l) => ({ src: l?.picto?.image_url, title: l?.text || '', set: l?.picto?.symbolset_id }))
+        .filter((x) => x.src && /^https:\/\//.test(x.src) && !/arasaac/i.test(x.src) && (seen.has(x.src) ? false : seen.add(x.src)))
+        .slice(0, limit)
+        .map((x) => ({ kind: 'picto', src: x.src, title: x.title, credit: GS_CREDIT }));
+    } catch (e) {
+      if (e instanceof TypeError || e.name === 'AbortError') net.gsDown = true;
+      gsCache.delete(key);
+      return [];
+    }
+  })();
+  gsCache.set(key, p);
+  return p;
+}
+
+/* --- Cliparts und Symbole: offene Sammlungen über Iconify (ohne Anmeldung) --- */
 const CLIPART_SETS = {
   'fluent-emoji': 'Microsoft Fluent Emoji (MIT)',
   'fluent-emoji-flat': 'Microsoft Fluent Emoji (MIT)',
   noto: 'Google Noto Emoji (Apache 2.0)',
   twemoji: 'Twemoji (CC BY 4.0)',
   openmoji: 'OpenMoji (CC BY-SA 4.0)',
+  'fluent-color': 'Microsoft Fluent UI (MIT)',
   'flat-color-icons': 'Flat Color Icons (MIT)',
   'streamline-emojis': 'Streamline Emojis (CC BY 4.0)',
   fxemoji: 'Firefox OS Emoji (CC BY 4.0)',
   emojione: 'EmojiOne (CC BY 4.0)',
+  'noto-v1': 'Google Noto Emoji (Apache 2.0)',
 };
+/* Einfarbige Symbole: klar und ruhig, gut für Verben und Dinge ohne Emoji */
+const SYMBOL_SETS = {
+  'game-icons': 'Game Icons (CC BY 3.0)',
+  healthicons: 'Health Icons (MIT)',
+  'material-symbols': 'Google Material Symbols (Apache 2.0)',
+  mdi: 'Material Design Icons (Apache 2.0)',
+  ph: 'Phosphor (MIT)',
+  tabler: 'Tabler Icons (MIT)',
+  'fa6-solid': 'Font Awesome (CC BY 4.0)',
+  lucide: 'Lucide (ISC)',
+  'emojione-monotone': 'EmojiOne (CC BY 4.0)',
+};
+const ICON_SETS = { ...CLIPART_SETS, ...SYMBOL_SETS };
 const clipartCache = new Map();
+const iconifyPic = (prefix, name) => ({
+  kind: 'clipart', src: `https://api.iconify.design/${prefix}/${name}.svg`, title: name.replace(/-/g, ' '),
+  credit: { text: `${SYMBOL_SETS[prefix] ? 'Symbol' : 'Clipart'}: ${ICON_SETS[prefix] || prefix}`, url: `https://icon-sets.iconify.design/${prefix}/${name}/` },
+});
 
-async function clipartSearch(query, limit = 24) {
+/** kind: 'color' (farbige Cliparts) oder 'mono' (einfarbige Symbole) */
+async function clipartSearch(query, limit = 24, kind = 'color') {
   query = String(query || '').trim().toLowerCase();
   if (!query || net.clipartDown) return [];
-  const key = `${query}|${limit}`;
+  const key = `${query}|${limit}|${kind}`;
   if (clipartCache.has(key)) return clipartCache.get(key);
-  const order = Object.keys(CLIPART_SETS);
+  const order = Object.keys(kind === 'mono' ? SYMBOL_SETS : CLIPART_SETS);
   const p = (async () => {
     const qs = new URLSearchParams({ query, limit: '96', prefixes: order.join(',') });
     try {
@@ -625,11 +622,7 @@ async function clipartSearch(query, limit = 24) {
       const names = (data?.icons || []).map(String).filter((n) => order.includes(n.split(':')[0]));
       // Relevanz behalten, aber die schönsten Sammlungen leicht bevorzugen
       const ranked = names.map((n, i) => [i + order.indexOf(n.split(':')[0]) * 2, n]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
-      return ranked.slice(0, limit).map((n) => {
-        const [prefix, name] = n.split(':');
-        return { kind: 'clipart', src: `https://api.iconify.design/${prefix}/${name}.svg`, title: name.replace(/-/g, ' '),
-          credit: { text: `Clipart: ${CLIPART_SETS[prefix]}`, url: `https://icon-sets.iconify.design/${prefix}/${name}/` } };
-      });
+      return ranked.slice(0, limit).map((n) => iconifyPic(...n.split(':')));
     } catch (e) {
       if (e instanceof TypeError || e.name === 'AbortError') net.clipartDown = true;
       clipartCache.delete(key);
@@ -640,31 +633,11 @@ async function clipartSearch(query, limit = 24) {
   return p;
 }
 
-async function clipartCandidates(word, lang, limit = 6) {
-  const term = await englishTerm(word, lang);
-  let list = await clipartSearch(term, limit);
-  if (!list.length && term.includes(' ')) list = await clipartSearch(term.split(' ').pop(), limit);
+async function clipartCandidates(word, lang, limit = 6, kind = 'color') {
+  const term = core(word.foreign, 'en');
+  let list = await clipartSearch(term, limit, kind);
+  if (!list.length && term.includes(' ')) list = await clipartSearch(term.split(' ').pop(), limit, kind);
   return list;
-}
-
-/* --- Openverse: über 800 Millionen frei lizenzierte Fotos und Zeichnungen (ohne Anmeldung) --- */
-async function openverseSearch(query, category = '') {
-  query = String(query || '').trim();
-  if (!query || net.openverseDown) return [];
-  net.openverseBusy = false;
-  const qs = new URLSearchParams({ q: query, page_size: '20', mature: 'false' });
-  if (category) qs.set('category', category);
-  try {
-    const data = await fetchJSON(`https://api.openverse.org/v1/images/?${qs}`, 12000);
-    return (data?.results || []).filter((r) => r && (r.thumbnail || r.url)).map((r) => ({
-      kind: 'photo', src: r.thumbnail || r.url, title: r.title || '',
-      credit: { text: `${r.creator || 'Openverse'} (${String(r.license || '').toUpperCase()} ${r.license_version || ''})`.replace(/\s+\)/, ')'), url: r.foreign_landing_url || 'https://openverse.org' },
-    }));
-  } catch (e) {
-    if (e instanceof TypeError || e.name === 'AbortError') net.openverseDown = true;
-    else if (/429/.test(String(e.message))) net.openverseBusy = true;
-    return [];
-  }
 }
 
 function loadImage(src, timeout = 30000) {
@@ -677,23 +650,22 @@ function loadImage(src, timeout = 30000) {
   });
 }
 
-/* --- automatische Bildwahl --- */
-/* Grundsatz: lieber kein Bild als ein missverständliches. Fotos nur für Nomen –
-   bei Verben und Adjektiven zeigen Wikipedia-Fotos oft etwas anderes. */
+/* --- automatische Bildwahl ---
+   Grundsatz: lieber kein Bild als ein missverständliches. */
 async function autoPicture(word, set) {
   const local = localPicture(word, set.lang);
   if (local && (local.kind === 'color' || local.kind === 'number')) return local;
-  const noun = isNounish(word, set.lang);
-  const picto = async () => (await pictoCandidates(word, set.lang, 1))[0] || null;
-  const photo = async () => (noun ? photoPicture(word, set.lang) : null);
+  const term = core(word.foreign, 'en').toLowerCase();
+  // Global Symbols nur, wenn die Beschriftung genau passt
+  const gs = async () => (await globalSymbolsSearch(term, 8)).find((x) => x.title.trim().toLowerCase() === term) || null;
+  const picto = async () => (await pictoCandidates(word, set.lang, 1))[0] || (await gs());
   const style = set.picStyle || 'picto';
-  if (style === 'emoji') return local || (await picto()) || (await photo());
-  if (style === 'photo') return (await photo()) || (await picto()) || local;
+  if (style === 'emoji') return local || (await picto());
   if (style === 'clipart') {
     const c = (await clipartCandidates(word, set.lang, 1))[0];
     if (c) return c;
   }
-  return (await picto()) || local || (await photo());
+  return (await picto()) || local;
 }
 
 const picJobs = new Map(); // setId -> {done, total}
@@ -806,7 +778,7 @@ function voiceRank(v, want) {
   const l = v.lang.toLowerCase().replace('_', '-');
   if (l === want) r += 10;
   if (/natural|neural|premium|enhanced|google/i.test(v.name)) r += 5;
-  if (/samantha|daniel|serena|kate|amélie|amelie|thomas|audrey|marie/i.test(v.name)) r += 3;
+  if (/samantha|daniel|serena|kate|arthur|martha/i.test(v.name)) r += 3;
   if (v.localService) r += 1;
   return r;
 }
@@ -1035,13 +1007,17 @@ function b64urlDecode(str) {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 /* Bilder im Link möglichst kurz speichern, damit der QR-Code grob und gut scanbar bleibt:
-   p<ARASAAC-Nr>  c<Sammlung:Name>  e<Emoji>  k<Farbe>  n<Zahl>  x = kein Bild  f<Foto-Adresse>  u<Bild-Adresse> */
+   p<ARASAAC-Nr>  s<Symbol-Adresse>  c<Sammlung:Name>  e<Emoji>  k<Farbe>  n<Zahl>  x = kein Bild  f<Foto-Adresse>  u<Bild-Adresse> */
 function picToCode(p) {
   if (!p) return '';
   if (p.kind === 'none') return 'x';
   const src = String(p.src || '');
   if (p.kind === 'upload' || p.kind === 'drawn' || src.startsWith('data:')) return ''; // zu groß für den Link
-  if (p.kind === 'picto') { const m = src.match(/pictograms\/(\d+)\/\1_\d+\.png$/); if (m) return 'p' + m[1]; }
+  if (p.kind === 'picto') {
+    const m = src.match(/pictograms\/(\d+)\/\1_\d+\.png$/);
+    if (m) return 'p' + m[1];
+    if (/^https:\/\//.test(src)) return 's' + src;
+  }
   if (p.kind === 'clipart') { const m = src.match(/api\.iconify\.design\/([^/]+)\/([^/]+)\.svg$/); if (m) return `c${m[1]}:${m[2]}`; }
   if (p.kind === 'emoji') return 'e' + src;
   if (p.kind === 'color') return 'k' + src;
@@ -1063,17 +1039,18 @@ function codeToPic(code) {
   if (t === 'e' && v) return { kind: 'emoji', src: v, manual: true };
   if (t === 'k' && /^#[0-9a-f]{3,8}$/i.test(v)) return { kind: 'color', src: v, manual: true };
   if (t === 'n' && /^\d{1,5}$/.test(v)) return { kind: 'number', src: v, manual: true };
+  if (t === 's' && /^https:\/\//.test(v)) return { kind: 'picto', src: v, credit: GS_CREDIT, manual: true };
   if ((t === 'f' || t === 'u') && /^https:\/\//.test(v)) return { kind: t === 'f' ? 'photo' : 'url', src: v, manual: true };
   return null;
 }
 
-/** lite: Fotos/Bild-Adressen weglassen (die Geräte der Kinder suchen dann selbst) – für einen kürzeren QR-Code */
+/** lite: Bild-Adressen weglassen (die Geräte der Kinder suchen dann selbst) – für einen kürzeren QR-Code */
 async function encodeShare(set, { lite = false } = {}) {
   const data = {
     v: 2, n: set.name, l: set.lang, s: set.picStyle,
     w: set.words.map((w) => {
       let code = picToCode(w.pic);
-      if (lite && /^[fu]/.test(code)) code = '';
+      if (lite && /^[fus]/.test(code)) code = '';
       return code ? [w.foreign, w.german, code] : [w.foreign, w.german];
     }),
   };
@@ -1099,7 +1076,7 @@ async function decodeShare(code) {
     : r[2] === 'none' ? { kind: 'none', src: '', manual: true }
       : r[2] && r[3] ? { kind: String(r[2]), src: String(r[3]), manual: true } : null);
   return {
-    name: String(d.n || 'Vokabeln'), lang: d.l === 'fr' ? 'fr' : 'en', picStyle: ['picto', 'clipart', 'photo', 'emoji'].includes(d.s) ? d.s : 'picto',
+    name: String(d.n || 'Vokabeln'), lang: 'en', picStyle: ['picto', 'clipart', 'emoji'].includes(d.s) ? d.s : 'picto',
     rows: (d.w || []).map((r) => ({
       foreign: String(r[0] || ''), german: String(r[1] || ''),
       pic: d.v === 2 ? codeToPic(r[2]) : v1pic(r),

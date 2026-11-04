@@ -1,467 +1,465 @@
 /* Vokabelwelt – Offline-Bildwörterbuch
- * Jede Zeile: Bild | Englisch | Französisch | Deutsch
+ * Jede Zeile: Bild | Englisch | Deutsch
  * Mehrere Wörter je Sprache mit Komma trennen.
  * Ein Bild ist entweder ein Emoji oder eine Farbe (#rrggbb) für Farbwörter.
  */
 window.PICTURE_DATA = `
-🍎|apple,red apple|pomme|Apfel
-🍏|green apple|pomme verte|grüner Apfel
-🍐|pear|poire|Birne
-🍊|orange,tangerine|orange,mandarine|Orange,Apfelsine,Mandarine
-🍋|lemon|citron|Zitrone
-🍌|banana|banane|Banane
-🍉|watermelon|pastèque|Wassermelone
-🍇|grapes,grape|raisin,raisins|Traube,Trauben,Weintraube,Weintrauben
-🍓|strawberry,strawberries|fraise,fraises|Erdbeere,Erdbeeren
-🫐|blueberry,blueberries|myrtille,myrtilles|Heidelbeere,Blaubeere,Heidelbeeren,Blaubeeren
-🍈|melon|melon|Melone
-🍒|cherry,cherries|cerise,cerises|Kirsche,Kirschen
-🍑|peach|pêche|Pfirsich
-🥭|mango|mangue|Mango
-🍍|pineapple|ananas|Ananas
-🥥|coconut|noix de coco|Kokosnuss
-🥝|kiwi|kiwi|Kiwi
-🍅|tomato,tomatoes|tomate,tomates|Tomate,Tomaten
-🍆|aubergine,eggplant|aubergine|Aubergine
-🥑|avocado|avocat|Avocado
-🥦|broccoli|brocoli|Brokkoli
-🥬|lettuce|laitue|Kopfsalat
-🥒|cucumber|concombre|Gurke
-🌶️|chili,chilli|piment|Chili,Peperoni
-🫑|pepper,bell pepper|poivron|Paprika
-🌽|corn,sweetcorn|maïs|Mais
-🥕|carrot,carrots|carotte,carottes|Karotte,Möhre,Karotten,Möhren
-🧄|garlic|ail|Knoblauch
-🧅|onion|oignon|Zwiebel
-🥔|potato,potatoes|pomme de terre,pommes de terre,patate|Kartoffel,Kartoffeln
-🍄|mushroom,mushrooms|champignon,champignons|Pilz,Pilze
-🥜|peanut,peanuts,nuts|cacahuète,cacahuètes|Erdnuss,Erdnüsse,Nüsse
-🌰|chestnut|châtaigne,marron|Kastanie
-🍞|bread|pain|Brot
-🥐|croissant|croissant|Croissant,Hörnchen
-🥖|baguette|baguette|Baguette
-🥨|pretzel|bretzel|Brezel
-🧀|cheese|fromage|Käse
-🥚|egg,eggs|œuf,oeuf,œufs|Ei,Eier
-🍳|fried egg,frying pan,pan|œuf au plat,poêle|Spiegelei,Pfanne
-🧈|butter|beurre|Butter
-🥞|pancake,pancakes|crêpe,crêpes|Pfannkuchen,Crêpe
-🧇|waffle,waffles|gaufre,gaufres|Waffel,Waffeln
-🥓|bacon|lard,bacon|Speck
-🥩|meat,steak|viande,steak|Fleisch,Steak
-🍗|chicken leg|cuisse de poulet,poulet|Hähnchen,Hühnchen,Hähnchenschenkel
-🌭|hot dog,sausage|hot-dog,saucisse|Hotdog,Würstchen,Wurst
-🍔|hamburger,burger|hamburger|Hamburger
-🍟|chips,french fries,fries|frites|Pommes,Pommes frites
-🍕|pizza|pizza|Pizza
-🥪|sandwich|sandwich|Sandwich,belegtes Brot
-🌮|taco|taco|Taco
-🍝|spaghetti,pasta|pâtes,spaghettis|Nudeln,Spaghetti
-🍲|soup,stew|soupe|Suppe,Eintopf
-🥗|salad|salade|Salat
-🍚|rice|riz|Reis
-🍣|sushi|sushi|Sushi
-🍦|ice cream,ice-cream|glace|Eis,Speiseeis
-🍰|cake|gâteau|Kuchen,Torte
-🎂|birthday cake,birthday|gâteau d'anniversaire,anniversaire|Geburtstagskuchen,Geburtstagstorte,Geburtstag
-🍪|biscuit,biscuits,cookie,cookies|biscuit,biscuits,cookie|Keks,Kekse,Plätzchen
-🍫|chocolate|chocolat|Schokolade
-🍬|sweet,sweets,candy|bonbon,bonbons|Bonbon,Bonbons,Süßigkeiten
-🍭|lollipop|sucette|Lutscher,Lolli
-🍯|honey|miel|Honig
-🧁|cupcake,muffin|cupcake,muffin|Muffin,Cupcake
-🍩|doughnut,donut|beignet,donut|Donut,Krapfen,Berliner
-🍿|popcorn|pop-corn|Popcorn
-🍮|pudding,dessert|dessert,flan|Pudding,Nachtisch,Nachspeise
-🥛|milk,glass of milk|lait|Milch
-☕|coffee,cup of coffee|café|Kaffee
-🍵|tea|thé|Tee
-🧃|juice|jus,jus de fruit|Saft
-💧|water|eau|Wasser
-🥤|lemonade,soft drink,fizzy drink|limonade,soda|Limonade,Limo
-🧂|salt|sel|Salz
-🍽️|plate|assiette|Teller
-🍴|fork,cutlery|fourchette,couverts|Gabel,Besteck
-🥄|spoon|cuillère,cuiller|Löffel
-🔪|knife|couteau|Messer
-🥣|bowl,cereal,cereals|bol,céréales|Schüssel,Müsli,Schale
-🫖|teapot|théière|Teekanne
-🧊|ice,ice cube|glaçon,glace|Eiswürfel
-🐶|dog|chien|Hund
-🐱|cat|chat|Katze
-🐭|mouse|souris|Maus
-🐹|hamster|hamster|Hamster
-🐰|rabbit,bunny|lapin|Kaninchen,Hase
-🦊|fox|renard|Fuchs
-🐻|bear|ours|Bär
-🐼|panda|panda|Panda
-🐨|koala|koala|Koala
-🐯|tiger|tigre|Tiger
-🦁|lion|lion|Löwe
-🐮|cow|vache|Kuh
-🐷|pig|cochon|Schwein
-🐸|frog|grenouille|Frosch
-🐵|monkey|singe|Affe
-🐔|chicken,hen|poule|Huhn,Henne
-🐓|rooster,cock|coq|Hahn
-🐤|chick|poussin|Küken
-🐧|penguin|pingouin,manchot|Pinguin
-🐦|bird|oiseau|Vogel
-🦆|duck|canard|Ente
-🦅|eagle|aigle|Adler
-🦉|owl|hibou,chouette|Eule
-🦜|parrot|perroquet|Papagei
-🦢|swan|cygne|Schwan
-🕊️|dove,pigeon|colombe,pigeon|Taube
-🦃|turkey|dinde|Truthahn,Pute
-🐺|wolf|loup|Wolf
-🐗|wild boar,boar|sanglier|Wildschwein
-🐴|horse|cheval|Pferd
-🦄|unicorn|licorne|Einhorn
-🐝|bee|abeille|Biene
-🐛|caterpillar|chenille|Raupe
-🦋|butterfly|papillon|Schmetterling
-🐌|snail|escargot|Schnecke
-🐞|ladybird,ladybug|coccinelle|Marienkäfer
-🐜|ant|fourmi|Ameise
-🕷️|spider|araignée|Spinne
-🪰|fly|mouche|Fliege
-🦟|mosquito|moustique|Mücke
-🪱|worm|ver|Wurm
-🐢|tortoise,turtle|tortue|Schildkröte
-🐍|snake|serpent|Schlange
-🦎|lizard|lézard|Eidechse
-🐊|crocodile|crocodile|Krokodil
-🐙|octopus|pieuvre,poulpe|Krake,Tintenfisch,Oktopus
-🦀|crab|crabe|Krabbe,Krebs
-🐟|fish|poisson|Fisch
-🐠|tropical fish|poisson tropical|Tropenfisch
-🐬|dolphin|dauphin|Delfin,Delphin
-🐳|whale|baleine|Wal
-🦈|shark|requin|Hai
-🐘|elephant|éléphant|Elefant
-🦒|giraffe|girafe|Giraffe
-🦓|zebra|zèbre|Zebra
-🦛|hippo,hippopotamus|hippopotame|Nilpferd,Flusspferd
-🦏|rhino,rhinoceros|rhinocéros|Nashorn
-🐪|camel|chameau|Kamel
-🐑|sheep|mouton|Schaf
-🐐|goat|chèvre|Ziege
-🦌|deer|cerf|Hirsch,Reh
-🐿️|squirrel|écureuil|Eichhörnchen
-🦔|hedgehog|hérisson|Igel
-🦇|bat|chauve-souris|Fledermaus
-🦖|dinosaur|dinosaure|Dinosaurier,Dino
-🐉|dragon|dragon|Drache
-🐾|paw|patte|Pfote
-👁️|eye|œil,oeil|Auge
-👀|eyes,look,to look,see,to see|yeux,regarder,voir|Augen,schauen,sehen,gucken
-👂|ear,listen,to listen,hear,to hear|oreille,écouter,entendre|Ohr,zuhören,hören
-👃|nose|nez|Nase
-👄|mouth,lips|bouche,lèvres|Mund,Lippen
-🦷|tooth,teeth|dent,dents|Zahn,Zähne
-👅|tongue|langue|Zunge
-✋|hand|main|Hand
-🦶|foot,feet|pied,pieds|Fuß,Füße
-🦵|leg|jambe|Bein
-💪|arm,strong|bras,fort,forte|Arm,stark
-👆|finger|doigt|Finger
-🧠|brain|cerveau|Gehirn
-❤️|heart,love|cœur,coeur,amour|Herz,Liebe
-💇|hair|cheveux|Haare
-🙂|face|visage|Gesicht
-👶|baby|bébé|Baby
-👦|boy|garçon|Junge
-👧|girl|fille|Mädchen
-👨|man|homme|Mann
-👩|woman|femme|Frau
-👴|grandfather,grandpa,granddad|grand-père,papi,papy|Großvater,Opa
-👵|grandmother,grandma,granny|grand-mère,mamie|Großmutter,Oma
-👨‍👩‍👧‍👦|family|famille|Familie
-👩‍👧|mother,mum,mom,mummy|mère,maman|Mutter,Mama
-👨‍👦|father,dad,daddy|père,papa|Vater,Papa
-🧑‍🤝‍🧑|friend,friends|ami,amie,amis,copain,copine|Freund,Freundin,Freunde
-👑|crown|couronne|Krone
-👸|princess|princesse|Prinzessin
-🤴|prince|prince|Prinz
-🧑‍🏫|teacher|professeur,prof,enseignant,enseignante,maître,maîtresse|Lehrer,Lehrerin,Lehrkraft
-🧑‍🎓|student,pupil|élève,étudiant,étudiante|Schüler,Schülerin,Student,Studentin
-🧑‍⚕️|doctor|médecin,docteur|Arzt,Ärztin
-👮|police officer,policeman,policewoman|policier,policière|Polizist,Polizistin
-🧑‍🚒|firefighter,fireman|pompier|Feuerwehrmann,Feuerwehrfrau
-🧑‍🍳|cook,chef,to cook,cooking|cuisinier,cuisinière,cuisiner,faire la cuisine|Koch,Köchin,kochen
-🧑‍🌾|farmer|fermier,fermière,agriculteur|Bauer,Bäuerin,Landwirt
-🧑‍🚀|astronaut|astronaute|Astronaut,Astronautin
-👷|builder,worker|ouvrier,ouvrière|Bauarbeiter,Arbeiter
-🧑‍🎨|artist,painter|artiste,peintre|Künstler,Künstlerin,Maler,Malerin
-🧙|wizard,witch,magician|sorcier,sorcière,magicien|Zauberer,Hexe
-🧚|fairy|fée|Fee
-🦸|superhero,hero|super-héros,héros|Superheld,Held
-🤖|robot|robot|Roboter
-👽|alien|extraterrestre|Außerirdischer,Alien
-👻|ghost|fantôme|Gespenst,Geist
-🏴‍☠️|pirate|pirate|Pirat
-🎃|pumpkin,halloween|citrouille|Kürbis,Halloween
-🎅|father christmas,santa claus,santa|père noël|Weihnachtsmann
-🎄|christmas tree,christmas|sapin de noël,noël|Weihnachtsbaum,Tannenbaum,Weihnachten
-🐣|easter|pâques|Ostern
-👕|t-shirt,tshirt|t-shirt,tee-shirt|T-Shirt
-👔|shirt,tie|chemise,cravate|Hemd,Krawatte
-👖|jeans,trousers,pants|jean,pantalon|Jeans,Hose
-👗|dress|robe|Kleid
-👚|blouse,top|chemisier|Bluse
-🧥|coat,jacket|manteau,veste,blouson|Mantel,Jacke
-🧦|socks,sock|chaussettes,chaussette|Socken,Socke
-🧤|gloves,glove|gants,gant|Handschuhe,Handschuh
-🧣|scarf|écharpe|Schal
-🧢|cap,baseball cap|casquette|Kappe,Basecap,Schirmmütze
-👒|hat|chapeau|Hut
-👟|trainers,sneakers,shoe,shoes|baskets,chaussure,chaussures|Turnschuhe,Schuh,Schuhe,Sportschuhe
-👢|boots,boot|bottes,botte|Stiefel
-🩳|shorts|short|kurze Hose,Shorts
-👙|bikini|bikini|Bikini
-🩱|swimsuit,swimming costume|maillot de bain|Badeanzug
-👓|glasses|lunettes|Brille
-🕶️|sunglasses|lunettes de soleil|Sonnenbrille
-🎒|schoolbag,school bag,backpack,rucksack|cartable,sac à dos|Schultasche,Ranzen,Schulranzen,Rucksack
-👜|bag,handbag|sac,sac à main|Tasche,Handtasche
-☂️|umbrella|parapluie|Regenschirm
-💍|ring|bague|Ring
-⌚|watch|montre|Armbanduhr
-🧶|wool|laine|Wolle
-✏️|pencil|crayon|Bleistift
-🖊️|pen,biro|stylo|Kuli,Kugelschreiber,Stift
-🖋️|fountain pen|stylo plume,stylo-plume|Füller,Füllfederhalter
-🖍️|crayon,crayons,coloured pencil,colouring pencil|crayon de couleur,crayons de couleur|Buntstift,Buntstifte,Wachsmalstift
-📏|ruler|règle|Lineal
-📐|set square|équerre|Geodreieck
-✂️|scissors|ciseaux|Schere
-📚|books|livres|Bücher
-📖|book,read,to read,reading|livre,lire,lecture|Buch,lesen,Lesen
-📓|exercise book,notebook|cahier|Heft,Schulheft
-🗒️|notepad|bloc-notes|Notizblock,Block
-📝|homework|devoirs|Hausaufgaben,Hausaufgabe
-✍️|write,to write,writing|écrire|schreiben,Schreiben
-🧮|maths,math,mathematics|maths,mathématiques|Mathe,Mathematik
-📎|paper clip|trombone|Büroklammer
-📌|pin,drawing pin|punaise|Pinnnadel,Reißzwecke
-🏫|school|école,collège|Schule
-🖥️|computer|ordinateur|Computer,Rechner
-💻|laptop|ordinateur portable|Laptop
-⌨️|keyboard|clavier|Tastatur
-📱|mobile phone,mobile,phone,smartphone,mobile|portable,téléphone portable,smartphone|Handy,Smartphone,Mobiltelefon
-☎️|telephone|téléphone|Telefon
-🗺️|map|carte géographique|Landkarte
-🌍|world,earth|monde,terre|Welt,Erde
-🧪|experiment,science|expérience,sciences|Experiment,Naturwissenschaft
-🔬|microscope,biology|microscope,biologie|Mikroskop,Biologie
-🎨|art,paint,to paint,painting|art,peinture,peindre|Kunst,malen,Malen
-🎵|music|musique|Musik
-🎶|song|chanson|Lied
-📅|calendar,date|calendrier,date|Kalender,Datum
-⏰|alarm clock|réveil|Wecker
-🕐|clock,time,o'clock|horloge,heure|Uhr,Uhrzeit,Zeit
-📧|email,e-mail|e-mail,mail,courriel|E-Mail
-✉️|letter,envelope|lettre,enveloppe|Brief,Umschlag
-📮|postbox|boîte aux lettres|Briefkasten
-📰|newspaper|journal|Zeitung
-🖼️|picture,painting|tableau,image|Bild,Gemälde
-📷|camera,photo|appareil photo,photo|Kamera,Fotoapparat,Foto
-📺|television,tv,telly|télévision,télé|Fernseher,Fernsehen
-📻|radio|radio|Radio
-🎧|headphones|casque,écouteurs|Kopfhörer
-🎮|video game,video games,computer game|jeu vidéo,jeux vidéo|Videospiel,Computerspiel
-🧸|teddy,teddy bear|nounours,ours en peluche|Teddy,Teddybär,Kuscheltier
-🪁|kite|cerf-volant|Drachen
-🧩|puzzle|puzzle|Puzzle
-🎲|dice|dé,dés|Würfel
-♟️|chess|échecs|Schach
-🃏|cards,playing cards|cartes|Spielkarten
-🎁|present,gift|cadeau|Geschenk
-🎈|balloon|ballon de baudruche|Luftballon
-🎉|party,celebrate|fête,faire la fête|Party,Fest,Feier,feiern
-🕯️|candle|bougie|Kerze
-🔑|key|clé,clef|Schlüssel
-🚪|door|porte|Tür
-🪟|window|fenêtre|Fenster
-🛏️|bed|lit|Bett
-🛋️|sofa,couch|canapé|Sofa,Couch
-🪑|chair|chaise|Stuhl
-🚽|toilet,loo|toilettes|Toilette,Klo
-🛁|bath,bathtub|baignoire,bain|Badewanne
-🚿|shower,to have a shower|douche,se doucher|Dusche,duschen
-🪥|toothbrush,brush your teeth|brosse à dents|Zahnbürste,Zähne putzen
-🧼|soap|savon|Seife
-🪞|mirror|miroir|Spiegel
-💡|light bulb,lamp,idea|ampoule,lampe,idée|Glühbirne,Lampe,Idee
-🛒|shopping trolley,shopping cart|caddie|Einkaufswagen
-🛍️|shopping,go shopping|faire du shopping,faire les courses,courses|einkaufen,shoppen,Einkaufen
-🧺|basket|panier|Korb
-🗑️|bin,rubbish bin,dustbin|poubelle|Mülleimer,Abfalleimer
-🧹|broom|balai|Besen
-🏠|house,home|maison|Haus,Zuhause
-🏡|garden|jardin|Garten
-🏢|office,building|bureau,immeuble|Büro,Gebäude
-🏥|hospital|hôpital|Krankenhaus
-🏦|bank|banque|Bank
-🏪|shop,store|magasin,boutique|Geschäft,Laden
-🏬|department store,shopping centre,shopping center|grand magasin,centre commercial|Kaufhaus,Einkaufszentrum
-⛪|church|église|Kirche
-🏰|castle|château|Burg,Schloss
-🏟️|stadium|stade|Stadion
-🏖️|beach|plage|Strand
-🏝️|island|île|Insel
-⛰️|mountain|montagne|Berg
-🏔️|mountains|montagnes|Gebirge,Berge
-🌋|volcano|volcan|Vulkan
-⛺|tent,camping,campsite|tente,camping|Zelt,Camping,Zeltplatz,Campingplatz
-🏞️|park|parc|Park
-🌳|tree|arbre|Baum
-🌲|forest,wood,woods,fir tree|forêt,bois,sapin|Wald,Tanne
-🌴|palm tree|palmier|Palme
-🌵|cactus|cactus|Kaktus
-🌷|tulip,spring|tulipe,printemps|Tulpe,Frühling
-🌹|rose|rose|Rose
-🌻|sunflower|tournesol|Sonnenblume
-🌸|flower,blossom|fleur|Blume,Blüte
-💐|flowers,bouquet|fleurs,bouquet|Blumen,Blumenstrauß
-🍀|clover,luck,lucky|trèfle,chance|Kleeblatt,Glück
-🍂|autumn,fall,leaves|automne,feuilles|Herbst,Blätter,Laub
-🍁|leaf|feuille|Blatt
-🌱|plant|plante|Pflanze
-🌊|sea,wave,ocean|mer,vague,océan|Meer,Welle,Ozean
-🌙|moon,night|lune,nuit|Mond,Nacht
-⭐|star|étoile|Stern
-☀️|sun,sunny|soleil,ensoleillé|Sonne,sonnig
-😎|cool|cool|cool
-☁️|cloud,cloudy|nuage,nuageux|Wolke,bewölkt,wolkig
-🌧️|rain,rainy|pluie,pluvieux|Regen,regnerisch
-⛈️|storm,thunderstorm|orage,tempête|Gewitter,Sturm
-❄️|snow,snowy|neige|Schnee
-⛄|snowman,winter|bonhomme de neige,hiver|Schneemann,Winter
-🌈|rainbow|arc-en-ciel|Regenbogen
-🌬️|wind,windy|vent|Wind,windig
-🌫️|fog,foggy|brouillard|Nebel,neblig
-🔥|fire|feu|Feuer
-🌡️|temperature,thermometer|température,thermomètre|Temperatur,Thermometer
-⛅|weather|météo|Wetter
-🚗|car|voiture|Auto,Wagen
-🚌|bus|bus|Bus
-🚲|bike,bicycle|vélo,bicyclette|Fahrrad,Rad
-🛴|scooter|trottinette|Roller,Tretroller
-🛵|moped|scooter,mobylette|Motorroller,Mofa
-🏍️|motorbike,motorcycle|moto|Motorrad
-🚂|train|train|Zug
-🚇|underground,tube,subway|métro|U-Bahn
-🚊|tram|tram,tramway|Straßenbahn
-✈️|plane,aeroplane,airplane,fly,to fly|avion,voler|Flugzeug,fliegen
-🛫|airport|aéroport|Flughafen
-🚁|helicopter|hélicoptère|Hubschrauber
-🚀|rocket|fusée|Rakete
-🚢|ship|bateau,navire|Schiff
-⛵|boat,sailing boat|voilier|Boot,Segelboot
-🚕|taxi|taxi|Taxi
-🚑|ambulance|ambulance|Krankenwagen
-🚒|fire engine|camion de pompiers|Feuerwehrauto
-🚓|police car|voiture de police|Polizeiauto
-🚚|lorry,truck|camion|Lastwagen,LKW,Lkw
-🚜|tractor|tracteur|Traktor
-🚦|traffic lights|feux,feu rouge|Ampel
-🛣️|road,street|route,rue|Straße
-🌉|bridge|pont|Brücke
-🚉|station,railway station|gare|Bahnhof
-⛽|petrol station|station-service|Tankstelle
-🧳|suitcase|valise|Koffer
-⚽|football,soccer,ball|football,foot,ballon,balle|Fußball,Ball
-🏀|basketball|basket,basket-ball|Basketball
-🏐|volleyball|volley,volley-ball|Volleyball
-🎾|tennis|tennis|Tennis
-🏓|table tennis,ping-pong|ping-pong,tennis de table|Tischtennis
-🏸|badminton|badminton|Badminton,Federball
-🏉|rugby|rugby|Rugby
-⚾|baseball|baseball|Baseball
-🏒|hockey,ice hockey|hockey|Eishockey,Hockey
-⛸️|ice skating,skating,skate,to skate|patinage,patiner|Eislaufen,Schlittschuh laufen
-🎿|skiing,ski,to ski|ski,faire du ski|Skifahren,Ski,Ski fahren
-🏂|snowboard,snowboarding|snowboard|Snowboard
-🛹|skateboard|skate,skateboard,planche à roulettes|Skateboard
-🏊|swimming,swim,to swim|natation,nager|Schwimmen,schwimmen
-🚴|cycling,ride a bike,to ride a bike|faire du vélo,cyclisme|Radfahren,Rad fahren
-🏃|running,run,to run,jogging|courir,course|laufen,rennen,joggen,Laufen
-🚶|walk,to walk,go for a walk|marcher,se promener,promenade|gehen,spazieren gehen,Spaziergang
-🧗|climbing,climb,to climb|escalade,grimper|Klettern,klettern
-🤸|gymnastics|gymnastique|Turnen,turnen
-🏇|riding,horse riding|équitation,faire du cheval|Reiten,reiten
-💃|dance,to dance,dancing|danser,danse|tanzen,Tanzen,Tanz
-🎤|sing,to sing,singing,microphone|chanter,micro|singen,Singen,Mikrofon
-🎸|guitar|guitare|Gitarre
-🎹|piano,keyboard instrument|piano|Klavier
-🥁|drums,drum|batterie,tambour|Schlagzeug,Trommel
-🎻|violin|violon|Geige
-🎺|trumpet|trompette|Trompete
-🏋️|sport,sports|sport|Sport
-🏆|trophy,win,to win|coupe,trophée,gagner|Pokal,gewinnen
-🥇|medal,winner|médaille,gagnant|Medaille,Sieger,Gewinner
-🎬|film,movie,cinema|film,cinéma|Film,Kino
-🎪|circus|cirque|Zirkus
-🎡|funfair|fête foraine|Jahrmarkt,Kirmes
-🗣️|speak,to speak,talk,to talk|parler|sprechen,reden
-🙋|ask,to ask,question|demander,question|fragen,Frage
-🤔|think,to think|penser,réfléchir|denken,nachdenken
-😴|sleep,to sleep,tired|dormir,fatigué,fatiguée|schlafen,müde
-🔍|look for,to look for,search,to search|chercher|suchen
-💰|money|argent|Geld
-💶|euro,euros|euro,euros|Euro
-🪙|coin|pièce|Münze
-👋|hello,hi,goodbye,bye|bonjour,salut,au revoir|Hallo,Tschüss,Auf Wiedersehen
-🙏|thank you,thanks|merci|danke
-👍|yes,good,ok,okay|oui,bien,bon,d'accord|ja,gut,okay
-👎|no,bad|non,mauvais,mauvaise|nein,schlecht
-😊|happy,glad|heureux,heureuse,content,contente|glücklich,froh
-😢|sad|triste|traurig
-😠|angry,cross|fâché,fâchée,en colère|wütend,böse,sauer
-😱|scared,afraid,frightened|effrayé,effrayée,avoir peur|ängstlich,Angst haben
-😲|surprised|surpris,surprise|überrascht
-🤒|ill,sick|malade|krank
-😋|hungry,delicious,tasty|avoir faim,délicieux,délicieuse|hungrig,lecker
-🥵|hot|chaud,chaude|heiß
-🥶|cold|froid,froide|kalt
-🤩|great,fantastic,brilliant|génial,super|toll,super,großartig
-😂|funny,laugh,to laugh|drôle,rire|lustig,lachen
-🥱|bored,boring|ennuyeux,s'ennuyer|langweilig,gelangweilt
-😍|love,to love|aimer,adorer|lieben,lieben
-🤗|hug,to hug|câlin,faire un câlin|Umarmung,umarmen
-😇|nice,kind|gentil,gentille|nett,lieb,freundlich
-🤫|quiet|silence|leise,still
-🔔|bell|cloche|Glocke,Klingel
-🔨|hammer|marteau|Hammer
-🧲|magnet|aimant|Magnet
-💎|diamond|diamant|Diamant
-🚩|flag|drapeau|Fahne,Flagge
-🌐|internet|internet|Internet
-#E03131|red|rouge|rot
-#F76707|orange|orange|orange
-#FCC419|yellow|jaune|gelb
-#2F9E44|green|vert,verte|grün
-#1C7ED6|blue|bleu,bleue|blau
-#7048E8|purple,violet|violet,violette|lila,violett
-#8B5A2B|brown|marron,brun,brune|braun
-#212529|black|noir,noire|schwarz
-#F8F9FA|white|blanc,blanche|weiß
-#F783AC|pink|rose|rosa,pink
-#868E96|grey,gray|gris,grise|grau
-#C9A227|gold,golden|doré,dorée,or|golden,Gold
-#ADB5BD|silver|argenté,argent|silbern,Silber
+🍎|apple,red apple|Apfel
+🍏|green apple|grüner Apfel
+🍐|pear|Birne
+🍊|orange,tangerine|Orange,Apfelsine,Mandarine
+🍋|lemon|Zitrone
+🍌|banana|Banane
+🍉|watermelon|Wassermelone
+🍇|grapes,grape|Traube,Trauben,Weintraube,Weintrauben
+🍓|strawberry,strawberries|Erdbeere,Erdbeeren
+🫐|blueberry,blueberries|Heidelbeere,Blaubeere,Heidelbeeren,Blaubeeren
+🍈|melon|Melone
+🍒|cherry,cherries|Kirsche,Kirschen
+🍑|peach|Pfirsich
+🥭|mango|Mango
+🍍|pineapple|Ananas
+🥥|coconut|Kokosnuss
+🥝|kiwi|Kiwi
+🍅|tomato,tomatoes|Tomate,Tomaten
+🍆|aubergine,eggplant|Aubergine
+🥑|avocado|Avocado
+🥦|broccoli|Brokkoli
+🥬|lettuce|Kopfsalat
+🥒|cucumber|Gurke
+🌶️|chili,chilli|Chili,Peperoni
+🫑|pepper,bell pepper|Paprika
+🌽|corn,sweetcorn|Mais
+🥕|carrot,carrots|Karotte,Möhre,Karotten,Möhren
+🧄|garlic|Knoblauch
+🧅|onion|Zwiebel
+🥔|potato,potatoes|Kartoffel,Kartoffeln
+🍄|mushroom,mushrooms|Pilz,Pilze
+🥜|peanut,peanuts,nuts|Erdnuss,Erdnüsse,Nüsse
+🌰|chestnut|Kastanie
+🍞|bread|Brot
+🥐|croissant|Croissant,Hörnchen
+🥖|baguette|Baguette
+🥨|pretzel|Brezel
+🧀|cheese|Käse
+🥚|egg,eggs|Ei,Eier
+🍳|fried egg,frying pan,pan|Spiegelei,Pfanne
+🧈|butter|Butter
+🥞|pancake,pancakes|Pfannkuchen,Crêpe
+🧇|waffle,waffles|Waffel,Waffeln
+🥓|bacon|Speck
+🥩|meat,steak|Fleisch,Steak
+🍗|chicken leg|Hähnchen,Hühnchen,Hähnchenschenkel
+🌭|hot dog,sausage|Hotdog,Würstchen,Wurst
+🍔|hamburger,burger|Hamburger
+🍟|chips,french fries,fries|Pommes,Pommes frites
+🍕|pizza|Pizza
+🥪|sandwich|Sandwich,belegtes Brot
+🌮|taco|Taco
+🍝|spaghetti,pasta|Nudeln,Spaghetti
+🍲|soup,stew|Suppe,Eintopf
+🥗|salad|Salat
+🍚|rice|Reis
+🍣|sushi|Sushi
+🍦|ice cream,ice-cream|Eis,Speiseeis
+🍰|cake|Kuchen,Torte
+🎂|birthday cake,birthday|Geburtstagskuchen,Geburtstagstorte,Geburtstag
+🍪|biscuit,biscuits,cookie,cookies|Keks,Kekse,Plätzchen
+🍫|chocolate|Schokolade
+🍬|sweet,sweets,candy|Bonbon,Bonbons,Süßigkeiten
+🍭|lollipop|Lutscher,Lolli
+🍯|honey|Honig
+🧁|cupcake,muffin|Muffin,Cupcake
+🍩|doughnut,donut|Donut,Krapfen,Berliner
+🍿|popcorn|Popcorn
+🍮|pudding,dessert|Pudding,Nachtisch,Nachspeise
+🥛|milk,glass of milk|Milch
+☕|coffee,cup of coffee|Kaffee
+🍵|tea|Tee
+🧃|juice|Saft
+💧|water|Wasser
+🥤|lemonade,soft drink,fizzy drink|Limonade,Limo
+🧂|salt|Salz
+🍽️|plate|Teller
+🍴|fork,cutlery|Gabel,Besteck
+🥄|spoon|Löffel
+🔪|knife|Messer
+🥣|bowl,cereal,cereals|Schüssel,Müsli,Schale
+🫖|teapot|Teekanne
+🧊|ice,ice cube|Eiswürfel
+🐶|dog|Hund
+🐱|cat|Katze
+🐭|mouse|Maus
+🐹|hamster|Hamster
+🐰|rabbit,bunny|Kaninchen,Hase
+🦊|fox|Fuchs
+🐻|bear|Bär
+🐼|panda|Panda
+🐨|koala|Koala
+🐯|tiger|Tiger
+🦁|lion|Löwe
+🐮|cow|Kuh
+🐷|pig|Schwein
+🐸|frog|Frosch
+🐵|monkey|Affe
+🐔|chicken,hen|Huhn,Henne
+🐓|rooster,cock|Hahn
+🐤|chick|Küken
+🐧|penguin|Pinguin
+🐦|bird|Vogel
+🦆|duck|Ente
+🦅|eagle|Adler
+🦉|owl|Eule
+🦜|parrot|Papagei
+🦢|swan|Schwan
+🕊️|dove,pigeon|Taube
+🦃|turkey|Truthahn,Pute
+🐺|wolf|Wolf
+🐗|wild boar,boar|Wildschwein
+🐴|horse|Pferd
+🦄|unicorn|Einhorn
+🐝|bee|Biene
+🐛|caterpillar|Raupe
+🦋|butterfly|Schmetterling
+🐌|snail|Schnecke
+🐞|ladybird,ladybug|Marienkäfer
+🐜|ant|Ameise
+🕷️|spider|Spinne
+🪰|fly|Fliege
+🦟|mosquito|Mücke
+🪱|worm|Wurm
+🐢|tortoise,turtle|Schildkröte
+🐍|snake|Schlange
+🦎|lizard|Eidechse
+🐊|crocodile|Krokodil
+🐙|octopus|Krake,Tintenfisch,Oktopus
+🦀|crab|Krabbe,Krebs
+🐟|fish|Fisch
+🐠|tropical fish|Tropenfisch
+🐬|dolphin|Delfin,Delphin
+🐳|whale|Wal
+🦈|shark|Hai
+🐘|elephant|Elefant
+🦒|giraffe|Giraffe
+🦓|zebra|Zebra
+🦛|hippo,hippopotamus|Nilpferd,Flusspferd
+🦏|rhino,rhinoceros|Nashorn
+🐪|camel|Kamel
+🐑|sheep|Schaf
+🐐|goat|Ziege
+🦌|deer|Hirsch,Reh
+🐿️|squirrel|Eichhörnchen
+🦔|hedgehog|Igel
+🦇|bat|Fledermaus
+🦖|dinosaur|Dinosaurier,Dino
+🐉|dragon|Drache
+🐾|paw|Pfote
+👁️|eye|Auge
+👀|eyes,look,to look,see,to see|Augen,schauen,sehen,gucken
+👂|ear,listen,to listen,hear,to hear|Ohr,zuhören,hören
+👃|nose|Nase
+👄|mouth,lips|Mund,Lippen
+🦷|tooth,teeth|Zahn,Zähne
+👅|tongue|Zunge
+✋|hand|Hand
+🦶|foot,feet|Fuß,Füße
+🦵|leg|Bein
+💪|arm,strong|Arm,stark
+👆|finger|Finger
+🧠|brain|Gehirn
+❤️|heart,love|Herz,Liebe
+💇|hair|Haare
+🙂|face|Gesicht
+👶|baby|Baby
+👦|boy|Junge
+👧|girl|Mädchen
+👨|man|Mann
+👩|woman|Frau
+👴|grandfather,grandpa,granddad|Großvater,Opa
+👵|grandmother,grandma,granny|Großmutter,Oma
+👨‍👩‍👧‍👦|family|Familie
+👩‍👧|mother,mum,mom,mummy|Mutter,Mama
+👨‍👦|father,dad,daddy|Vater,Papa
+🧑‍🤝‍🧑|friend,friends|Freund,Freundin,Freunde
+👑|crown|Krone
+👸|princess|Prinzessin
+🤴|prince|Prinz
+🧑‍🏫|teacher|Lehrer,Lehrerin,Lehrkraft
+🧑‍🎓|student,pupil|Schüler,Schülerin,Student,Studentin
+🧑‍⚕️|doctor|Arzt,Ärztin
+👮|police officer,policeman,policewoman|Polizist,Polizistin
+🧑‍🚒|firefighter,fireman|Feuerwehrmann,Feuerwehrfrau
+🧑‍🍳|cook,chef,to cook,cooking|Koch,Köchin,kochen
+🧑‍🌾|farmer|Bauer,Bäuerin,Landwirt
+🧑‍🚀|astronaut|Astronaut,Astronautin
+👷|builder,worker|Bauarbeiter,Arbeiter
+🧑‍🎨|artist,painter|Künstler,Künstlerin,Maler,Malerin
+🧙|wizard,witch,magician|Zauberer,Hexe
+🧚|fairy|Fee
+🦸|superhero,hero|Superheld,Held
+🤖|robot|Roboter
+👽|alien|Außerirdischer,Alien
+👻|ghost|Gespenst,Geist
+🏴‍☠️|pirate|Pirat
+🎃|pumpkin,halloween|Kürbis,Halloween
+🎅|father christmas,santa claus,santa|Weihnachtsmann
+🎄|christmas tree,christmas|Weihnachtsbaum,Tannenbaum,Weihnachten
+🐣|easter|Ostern
+👕|t-shirt,tshirt|T-Shirt
+👔|shirt,tie|Hemd,Krawatte
+👖|jeans,trousers,pants|Jeans,Hose
+👗|dress|Kleid
+👚|blouse,top|Bluse
+🧥|coat,jacket|Mantel,Jacke
+🧦|socks,sock|Socken,Socke
+🧤|gloves,glove|Handschuhe,Handschuh
+🧣|scarf|Schal
+🧢|cap,baseball cap|Kappe,Basecap,Schirmmütze
+👒|hat|Hut
+👟|trainers,sneakers,shoe,shoes|Turnschuhe,Schuh,Schuhe,Sportschuhe
+👢|boots,boot|Stiefel
+🩳|shorts|kurze Hose,Shorts
+👙|bikini|Bikini
+🩱|swimsuit,swimming costume|Badeanzug
+👓|glasses|Brille
+🕶️|sunglasses|Sonnenbrille
+🎒|schoolbag,school bag,backpack,rucksack|Schultasche,Ranzen,Schulranzen,Rucksack
+👜|bag,handbag|Tasche,Handtasche
+☂️|umbrella|Regenschirm
+💍|ring|Ring
+⌚|watch|Armbanduhr
+🧶|wool|Wolle
+✏️|pencil|Bleistift
+🖊️|pen,biro|Kuli,Kugelschreiber,Stift
+🖋️|fountain pen|Füller,Füllfederhalter
+🖍️|crayon,crayons,coloured pencil,colouring pencil|Buntstift,Buntstifte,Wachsmalstift
+📏|ruler|Lineal
+📐|set square|Geodreieck
+✂️|scissors|Schere
+📚|books|Bücher
+📖|book,read,to read,reading|Buch,lesen,Lesen
+📓|exercise book,notebook|Heft,Schulheft
+🗒️|notepad|Notizblock,Block
+📝|homework|Hausaufgaben,Hausaufgabe
+✍️|write,to write,writing|schreiben,Schreiben
+🧮|maths,math,mathematics|Mathe,Mathematik
+📎|paper clip|Büroklammer
+📌|pin,drawing pin|Pinnnadel,Reißzwecke
+🏫|school|Schule
+🖥️|computer|Computer,Rechner
+💻|laptop|Laptop
+⌨️|keyboard|Tastatur
+📱|mobile phone,mobile,phone,smartphone,mobile|Handy,Smartphone,Mobiltelefon
+☎️|telephone|Telefon
+🗺️|map|Landkarte
+🌍|world,earth|Welt,Erde
+🧪|experiment,science|Experiment,Naturwissenschaft
+🔬|microscope,biology|Mikroskop,Biologie
+🎨|art,paint,to paint,painting|Kunst,malen,Malen
+🎵|music|Musik
+🎶|song|Lied
+📅|calendar,date|Kalender,Datum
+⏰|alarm clock|Wecker
+🕐|clock,time,o'clock|Uhr,Uhrzeit,Zeit
+📧|email,e-mail|E-Mail
+✉️|letter,envelope|Brief,Umschlag
+📮|postbox|Briefkasten
+📰|newspaper|Zeitung
+🖼️|picture,painting|Bild,Gemälde
+📷|camera,photo|Kamera,Fotoapparat,Foto
+📺|television,tv,telly|Fernseher,Fernsehen
+📻|radio|Radio
+🎧|headphones|Kopfhörer
+🎮|video game,video games,computer game|Videospiel,Computerspiel
+🧸|teddy,teddy bear|Teddy,Teddybär,Kuscheltier
+🪁|kite|Drachen
+🧩|puzzle|Puzzle
+🎲|dice|Würfel
+♟️|chess|Schach
+🃏|cards,playing cards|Spielkarten
+🎁|present,gift|Geschenk
+🎈|balloon|Luftballon
+🎉|party,celebrate|Party,Fest,Feier,feiern
+🕯️|candle|Kerze
+🔑|key|Schlüssel
+🚪|door|Tür
+🪟|window|Fenster
+🛏️|bed|Bett
+🛋️|sofa,couch|Sofa,Couch
+🪑|chair|Stuhl
+🚽|toilet,loo|Toilette,Klo
+🛁|bath,bathtub|Badewanne
+🚿|shower,to have a shower|Dusche,duschen
+🪥|toothbrush,brush your teeth|Zahnbürste,Zähne putzen
+🧼|soap|Seife
+🪞|mirror|Spiegel
+💡|light bulb,lamp,idea|Glühbirne,Lampe,Idee
+🛒|shopping trolley,shopping cart|Einkaufswagen
+🛍️|shopping,go shopping|einkaufen,shoppen,Einkaufen
+🧺|basket|Korb
+🗑️|bin,rubbish bin,dustbin|Mülleimer,Abfalleimer
+🧹|broom|Besen
+🏠|house,home|Haus,Zuhause
+🏡|garden|Garten
+🏢|office,building|Büro,Gebäude
+🏥|hospital|Krankenhaus
+🏦|bank|Bank
+🏪|shop,store|Geschäft,Laden
+🏬|department store,shopping centre,shopping center|Kaufhaus,Einkaufszentrum
+⛪|church|Kirche
+🏰|castle|Burg,Schloss
+🏟️|stadium|Stadion
+🏖️|beach|Strand
+🏝️|island|Insel
+⛰️|mountain|Berg
+🏔️|mountains|Gebirge,Berge
+🌋|volcano|Vulkan
+⛺|tent,camping,campsite|Zelt,Camping,Zeltplatz,Campingplatz
+🏞️|park|Park
+🌳|tree|Baum
+🌲|forest,wood,woods,fir tree|Wald,Tanne
+🌴|palm tree|Palme
+🌵|cactus|Kaktus
+🌷|tulip,spring|Tulpe,Frühling
+🌹|rose|Rose
+🌻|sunflower|Sonnenblume
+🌸|flower,blossom|Blume,Blüte
+💐|flowers,bouquet|Blumen,Blumenstrauß
+🍀|clover,luck,lucky|Kleeblatt,Glück
+🍂|autumn,fall,leaves|Herbst,Blätter,Laub
+🍁|leaf|Blatt
+🌱|plant|Pflanze
+🌊|sea,wave,ocean|Meer,Welle,Ozean
+🌙|moon,night|Mond,Nacht
+⭐|star|Stern
+☀️|sun,sunny|Sonne,sonnig
+😎|cool|cool
+☁️|cloud,cloudy|Wolke,bewölkt,wolkig
+🌧️|rain,rainy|Regen,regnerisch
+⛈️|storm,thunderstorm|Gewitter,Sturm
+❄️|snow,snowy|Schnee
+⛄|snowman,winter|Schneemann,Winter
+🌈|rainbow|Regenbogen
+🌬️|wind,windy|Wind,windig
+🌫️|fog,foggy|Nebel,neblig
+🔥|fire|Feuer
+🌡️|temperature,thermometer|Temperatur,Thermometer
+⛅|weather|Wetter
+🚗|car|Auto,Wagen
+🚌|bus|Bus
+🚲|bike,bicycle|Fahrrad,Rad
+🛴|scooter|Roller,Tretroller
+🛵|moped|Motorroller,Mofa
+🏍️|motorbike,motorcycle|Motorrad
+🚂|train|Zug
+🚇|underground,tube,subway|U-Bahn
+🚊|tram|Straßenbahn
+✈️|plane,aeroplane,airplane,fly,to fly|Flugzeug,fliegen
+🛫|airport|Flughafen
+🚁|helicopter|Hubschrauber
+🚀|rocket|Rakete
+🚢|ship|Schiff
+⛵|boat,sailing boat|Boot,Segelboot
+🚕|taxi|Taxi
+🚑|ambulance|Krankenwagen
+🚒|fire engine|Feuerwehrauto
+🚓|police car|Polizeiauto
+🚚|lorry,truck|Lastwagen,LKW,Lkw
+🚜|tractor|Traktor
+🚦|traffic lights|Ampel
+🛣️|road,street|Straße
+🌉|bridge|Brücke
+🚉|station,railway station|Bahnhof
+⛽|petrol station|Tankstelle
+🧳|suitcase|Koffer
+⚽|football,soccer,ball|Fußball,Ball
+🏀|basketball|Basketball
+🏐|volleyball|Volleyball
+🎾|tennis|Tennis
+🏓|table tennis,ping-pong|Tischtennis
+🏸|badminton|Badminton,Federball
+🏉|rugby|Rugby
+⚾|baseball|Baseball
+🏒|hockey,ice hockey|Eishockey,Hockey
+⛸️|ice skating,skating,skate,to skate|Eislaufen,Schlittschuh laufen
+🎿|skiing,ski,to ski|Skifahren,Ski,Ski fahren
+🏂|snowboard,snowboarding|Snowboard
+🛹|skateboard|Skateboard
+🏊|swimming,swim,to swim|Schwimmen,schwimmen
+🚴|cycling,ride a bike,to ride a bike|Radfahren,Rad fahren
+🏃|running,run,to run,jogging|laufen,rennen,joggen,Laufen
+🚶|walk,to walk,go for a walk|gehen,spazieren gehen,Spaziergang
+🧗|climbing,climb,to climb|Klettern,klettern
+🤸|gymnastics|Turnen,turnen
+🏇|riding,horse riding|Reiten,reiten
+💃|dance,to dance,dancing|tanzen,Tanzen,Tanz
+🎤|sing,to sing,singing,microphone|singen,Singen,Mikrofon
+🎸|guitar|Gitarre
+🎹|piano,keyboard instrument|Klavier
+🥁|drums,drum|Schlagzeug,Trommel
+🎻|violin|Geige
+🎺|trumpet|Trompete
+🏋️|sport,sports|Sport
+🏆|trophy,win,to win|Pokal,gewinnen
+🥇|medal,winner|Medaille,Sieger,Gewinner
+🎬|film,movie,cinema|Film,Kino
+🎪|circus|Zirkus
+🎡|funfair|Jahrmarkt,Kirmes
+🗣️|speak,to speak,talk,to talk|sprechen,reden
+🙋|ask,to ask,question|fragen,Frage
+🤔|think,to think|denken,nachdenken
+😴|sleep,to sleep,tired|schlafen,müde
+🔍|look for,to look for,search,to search|suchen
+💰|money|Geld
+💶|euro,euros|Euro
+🪙|coin|Münze
+👋|hello,hi,goodbye,bye|Hallo,Tschüss,Auf Wiedersehen
+🙏|thank you,thanks|danke
+👍|yes,good,ok,okay|ja,gut,okay
+👎|no,bad|nein,schlecht
+😊|happy,glad|glücklich,froh
+😢|sad|traurig
+😠|angry,cross|wütend,böse,sauer
+😱|scared,afraid,frightened|ängstlich,Angst haben
+😲|surprised|überrascht
+🤒|ill,sick|krank
+😋|hungry,delicious,tasty|hungrig,lecker
+🥵|hot|heiß
+🥶|cold|kalt
+🤩|great,fantastic,brilliant|toll,super,großartig
+😂|funny,laugh,to laugh|lustig,lachen
+🥱|bored,boring|langweilig,gelangweilt
+😍|love,to love|lieben,lieben
+🤗|hug,to hug|Umarmung,umarmen
+😇|nice,kind|nett,lieb,freundlich
+🤫|quiet|leise,still
+🔔|bell|Glocke,Klingel
+🔨|hammer|Hammer
+🧲|magnet|Magnet
+💎|diamond|Diamant
+🚩|flag|Fahne,Flagge
+🌐|internet|Internet
+#E03131|red|rot
+#F76707|orange|orange
+#FCC419|yellow|gelb
+#2F9E44|green|grün
+#1C7ED6|blue|blau
+#7048E8|purple,violet|lila,violett
+#8B5A2B|brown|braun
+#212529|black|schwarz
+#F8F9FA|white|weiß
+#F783AC|pink|rosa,pink
+#868E96|grey,gray|grau
+#C9A227|gold,golden|golden,Gold
+#ADB5BD|silver|silbern,Silber
 `;
 
 /* Zahlwörter → Ziffer (wird als große Zahl dargestellt) */
 window.NUMBER_WORDS = {
   en: ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'],
-  fr: ['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf','vingt'],
   de: ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn','elf','zwölf','dreizehn','vierzehn','fünfzehn','sechzehn','siebzehn','achtzehn','neunzehn','zwanzig'],
   tens: {
     en: { thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, 'a hundred': 100, 'one hundred': 100, hundred: 100, 'a thousand': 1000, thousand: 1000 },
-    fr: { trente: 30, quarante: 40, cinquante: 50, soixante: 60, 'soixante-dix': 70, 'quatre-vingts': 80, 'quatre-vingt': 80, 'quatre-vingt-dix': 90, cent: 100, mille: 1000 },
     de: { 'dreißig': 30, vierzig: 40, 'fünfzig': 50, sechzig: 60, siebzig: 70, achtzig: 80, neunzig: 90, hundert: 100, einhundert: 100, tausend: 1000 }
   }
 };

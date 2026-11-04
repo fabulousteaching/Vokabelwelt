@@ -1,7 +1,8 @@
-/* Vokabelwelt – Übungsarten: Lernkarten, Zuordnen, Aussprechen, Test */
+/* Vokabelwelt – Übungsarten: Lernkarten, Zuordnen, Aussprechen, Hören & Schreiben, Test */
 'use strict';
 
 const wordsById = (set, ids) => ids.map((id) => set.words.find((w) => w.id === id)).filter(Boolean);
+const AUTO_NEXT_MS = 1000; // Richtig → nach dieser Zeit automatisch weiter
 const sayBtn = (text, lang, label = 'Anhören', extra = '') => (canSpeak() && text
   ? `<button type="button" class="say ${extra}" data-action="say" data-text="${esc(text)}" data-lang="${lang}" aria-label="${esc(label)}" title="${esc(label)}">${icon('speaker')}</button>` : '');
 const progressBar = (frac, label) => `<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(frac * 100)}" aria-label="${esc(label)}"><div class="progress-fill" style="width:${(frac * 100).toFixed(1)}%"></div></div>`;
@@ -449,7 +450,7 @@ function renderSpeak() {
         <div class="row center">
           ${hard.length ? `<button class="btn primary" data-action="speak-again" data-which="hard">${icon('mic')} Diese ${hard.length} nochmal</button>` : ''}
           <button class="btn ${hard.length ? 'secondary' : 'primary'}" data-action="speak-again" data-which="all">${icon('shuffle')} Alle nochmal</button>
-          <button class="btn secondary" data-action="mode" data-mode="test">Weiter: Test ${icon('right')}</button>
+          <button class="btn secondary" data-action="mode" data-mode="dictation">Weiter: Hören & Schreiben ${icon('right')}</button>
         </div>
       </div></section>`;
     return;
@@ -513,13 +514,12 @@ function speakZone(set, w) {
       </div>`;
   }
   if (s === 'ok' && speakM.ph) {
-    return `<div class="banner good">${icon('check')}<div><strong>Richtig! ${speakM.ph.score} von 100 Punkten.</strong>${phPhonesHTML(speakM.ph)}</div></div>
+    return `<div class="banner good">${icon('check')}<div><strong>Richtig! ${speakM.ph.score} von 100 Punkten.</strong></div></div>
       <div class="row center"><button class="btn primary" data-action="speak-next">Weiter ${icon('right')}</button></div>`;
   }
   if (s === 'bad' && speakM.ph) {
     const r = speakM.ph;
-    return `<div class="banner bad">${icon('x')}<div><strong>Noch nicht ganz: ${r.score} von 100 Punkten</strong> (nötig: ${r.passMin}). Rot markierte Laute klangen anders – darunter steht, was eher zu hören war.
-        ${phPhonesHTML(r)}</div></div>
+    return `<div class="banner bad">${icon('x')}<div><strong>Noch nicht ganz: ${r.score} von 100 Punkten</strong> (nötig: ${r.passMin}). Hör dir die richtige Aussprache an und versuch es nochmal.</div></div>
       <div class="row center">${listenBtns}</div>
       <div class="row center">
         <button class="btn primary" data-action="listen">${icon('mic')} Nochmal sprechen</button>
@@ -533,8 +533,7 @@ function speakZone(set, w) {
   if (s === 'bad') {
     const help = speakM.heard ? '' : (silenceHelp(speakM.peak) || 'Wenn das öfter passiert: Einstellungen (oben rechts) → „Mikrofon testen“.');
     const detail = !speakM.heard ? ' Tippe auf das Mikrofon und sprich gleich danach laut und deutlich.'
-      : speakM.note === 'article' ? ` Ich habe „${esc(speakM.heard)}“ verstanden. Achte auf den Artikel: „${esc(w.foreign)}“.`
-          : ` Ich habe „${esc(speakM.heard)}“ verstanden. Richtig ist „${esc(w.foreign)}“.`;
+      : ` Ich habe „${esc(speakM.heard)}“ verstanden. Richtig ist „${esc(w.foreign)}“.`;
     return `<div class="banner bad">${icon('x')}<div><strong>${speakM.heard ? 'Noch nicht ganz.' : 'Ich habe nichts gehört.'}</strong>
         ${detail}
         ${help ? `<span class="help-line">${esc(help)}</span>` : ''}</div></div>
@@ -620,7 +619,6 @@ async function doListen() {
     if (!alts.length) speakM.silentTries = (speakM.silentTries || 0) + 1; else speakM.silentTries = 0;
     const res = speechMatch(alts, w, set.lang);
     speakM.heard = res.heard || '';
-    speakM.note = res.note || '';
     if (res.ok) {
       markSpeakOk(w);
     } else {
@@ -650,7 +648,8 @@ function markSpeakOk(w) {
   if (!speakM.results.has(w.id)) speakM.results.set(w.id, speakM.attempts === 1 && !speakM.revealed ? 'ok' : 'retry');
   sfx.good();
   revealSpeakWord();
-  speakM.timer = setTimeout(() => { if (ui.view === 'speak' && speakM.state === 'ok') nextSpeak(); }, speakM.ph ? 2800 : 1800);
+  // Richtig → automatisch zum nächsten Wort
+  speakM.timer = setTimeout(() => { if (ui.view === 'speak' && speakM.state === 'ok') nextSpeak(); }, AUTO_NEXT_MS + 300);
 }
 
 /* Lauterkennung (Versuch): Laut für Laut auf dem Gerät prüfen */
@@ -717,7 +716,130 @@ function nextSpeak() {
 }
 
 /* =========================================================
-   4 · TEST
+   4 · HÖREN & SCHREIBEN (Diktat als Übung)
+   ========================================================= */
+const dict = { ids: [], queue: [], total: 0, firstTry: new Map(), checked: false, status: '', showDe: false, timer: null, finished: false };
+
+function startDictation(set, ids) {
+  dict.ids = ids || set.words.filter((w) => w.foreign).map((w) => w.id);
+  dict.queue = shuffle(dict.ids);
+  dict.total = dict.queue.length;
+  dict.firstTry = new Map();
+  dict.finished = false;
+  resetDictWord();
+}
+function resetDictWord() {
+  dict.checked = false; dict.status = ''; dict.showDe = false;
+  clearTimeout(dict.timer);
+}
+const dictWord = (set) => set.words.find((w) => w.id === dict.queue[0]);
+const dictOk = () => [...dict.firstTry.values()].filter(Boolean).length;
+
+function renderDictation() {
+  const set = currentSet();
+  const v = $('#view');
+  const bar = '<div class="mode-bar"><h1 class="mode-title">Hören & Schreiben</h1></div>';
+  if (!canSpeak()) {
+    v.innerHTML = `<section class="mode dict-mode">${bar}
+      <div class="result"><h2>Dieser Browser kann nicht vorlesen.</h2>
+      <p class="result-line">Für diese Übung braucht es eine Vorlese-Stimme. Probiere Chrome, Edge oder Safari.</p>
+      <div class="row center"><button class="btn primary" data-action="open-set" data-id="${set.id}">Zur Übersicht</button></div></div></section>`;
+    return;
+  }
+  if (dict.finished) {
+    const ok = dictOk();
+    const hard = [...dict.firstTry].filter(([, k]) => !k).map(([id]) => id);
+    const pct = dict.total ? ok / dict.total : 0;
+    v.innerHTML = `<section class="mode dict-mode">${bar}
+      <div class="result">
+        ${stars(pct >= 0.9 ? 3 : pct >= 0.6 ? 2 : 1)}
+        <h2>${ok === dict.total ? 'Super, alles gleich richtig geschrieben!' : 'Gut zugehört!'}</h2>
+        <p class="result-line">${ok} von ${dict.total} Wörtern gleich beim ersten Mal richtig geschrieben.</p>
+        ${hard.length ? `<ul class="word-chips">${wordsById(set, hard).map((w) => `<li><span lang="en">${esc(w.foreign)}</span>${sayBtn(w.foreign, set.lang)}</li>`).join('')}</ul>` : ''}
+        <div class="row center">
+          ${hard.length ? `<button class="btn primary" data-action="dict-again" data-which="hard">${icon('pencil2')} Diese ${hard.length} nochmal</button>` : ''}
+          <button class="btn ${hard.length ? 'secondary' : 'primary'}" data-action="dict-again" data-which="all">${icon('shuffle')} Alle nochmal</button>
+          <button class="btn secondary" data-action="mode" data-mode="test">Weiter: Test ${icon('right')}</button>
+        </div>
+      </div></section>`;
+    return;
+  }
+  const w = dictWord(set);
+  if (!w) { finishDictation(set); return; }
+  const done = dict.total - dict.queue.length;
+  const hint = w.german
+    ? (dict.showDe ? `<p class="cw-german" lang="de">${esc(w.german)}</p>` : `<button class="btn ghost small" data-action="dict-hint">${icon('eye')} Tipp: Was heißt es auf Deutsch?</button>`)
+    : '';
+  v.innerHTML = `<section class="mode dict-mode">${bar}
+    ${progressBar(done / dict.total, 'Fortschritt')}
+    <p class="progress-label"><span>Noch ${dict.queue.length} ${dict.queue.length === 1 ? 'Wort' : 'Wörter'}</span><span class="tally"><b class="ok">${icon('check')} ${dictOk()}</b></span></p>
+    <div class="test-card dict-card">
+      <p class="q-kind">${icon('speaker')} Hör genau hin und schreib das Wort.</p>
+      <div class="q-prompt"><div class="listen-prompt">
+        <button class="btn primary round" data-action="dict-play" aria-label="Wort anhören">${icon('speaker', 'big')}</button>
+        <button class="btn ghost small" data-action="dict-play" data-slow="1">${icon('snail')} Langsam</button>
+      </div></div>
+      <div class="dict-hint" id="dict-hint">${hint}</div>
+      <form class="answer-form" id="d-form" autocomplete="off">
+        <input id="d-answer" type="text" lang="en" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Was hörst du?" aria-label="Deine Antwort">
+        <button class="btn primary" type="submit" id="d-submit">Prüfen</button>
+      </form>
+      <div id="d-feedback" class="feedback" aria-live="polite"></div>
+      <div class="row center" id="d-more"><button class="btn ghost small" data-action="dict-unknown">Weiß ich nicht</button></div>
+    </div>
+  </section>`;
+  $('#d-form').addEventListener('submit', (e) => { e.preventDefault(); dict.checked ? nextDict() : checkDict(); });
+  setTimeout(() => $('#d-answer')?.focus(), 60);
+  setTimeout(() => { if (ui.view === 'dictation' && dictWord(set) === w && !dict.checked) speak(w.foreign, set.lang); }, 300);
+}
+
+function checkDict(giveUp = false) {
+  const set = currentSet();
+  const w = dictWord(set);
+  const input = $('#d-answer');
+  if (!w || !input || dict.checked) return;
+  if (!giveUp && !input.value.trim()) { input.focus(); input.classList.add('nudge'); setTimeout(() => input.classList.remove('nudge'), 400); return; }
+  const r = giveUp ? { status: 'wrong' } : checkAnswer(input.value, w);
+  dict.checked = true;
+  dict.status = r.status;
+  if (!dict.firstTry.has(w.id)) dict.firstTry.set(w.id, r.status === 'correct');
+  input.readOnly = true;
+  input.classList.add(r.status);
+  $('#d-submit').innerHTML = `Weiter ${icon('right')}`;
+  $('#d-more')?.remove();
+  $('#d-feedback').innerHTML = feedbackHTML(set, w, r.status, r.note)
+    + (r.status === 'wrong' ? '<p class="muted small center">Das Wort kommt gleich noch einmal.</p>' : '');
+  (r.status === 'correct' ? sfx.good : r.status === 'almost' ? sfx.almost : sfx.bad)();
+  const t = $('.dict-mode .tally .ok');
+  if (t) t.innerHTML = `${icon('check')} ${dictOk()}`;
+  $('#d-submit').focus();
+  if (r.status === 'correct') {
+    const id = w.id;
+    dict.timer = setTimeout(() => { if (ui.view === 'dictation' && dict.checked && dict.queue[0] === id) nextDict(); }, AUTO_NEXT_MS);
+  }
+}
+
+function nextDict() {
+  clearTimeout(dict.timer);
+  stopSpeaking();
+  const id = dict.queue.shift();
+  if (dict.status === 'wrong') dict.queue.splice(Math.min(dict.queue.length, 2 + Math.floor(Math.random() * 2)), 0, id);
+  resetDictWord();
+  const set = currentSet();
+  if (!dict.queue.length) finishDictation(set); else renderDictation();
+}
+
+function finishDictation(set) {
+  dict.finished = true;
+  const ok = dictOk();
+  if (dict.total === set.words.filter((w) => w.foreign).length || !set.progress?.dictation) saveProgress(set, 'dictation', { correct: ok, total: dict.total, date: Date.now() });
+  sfx.win();
+  if (dict.total && ok / dict.total >= 0.8) confetti();
+  renderDictation();
+}
+
+/* =========================================================
+   5 · TEST
    ========================================================= */
 const TEST_TYPES = {
   pic: { label: 'Bild → schreiben', icon: 'image' },
@@ -725,7 +847,7 @@ const TEST_TYPES = {
   listen: { label: 'Hören → schreiben', icon: 'speaker' },
   choice: { label: 'Bedeutung wählen', icon: 'check' },
 };
-const test = { phase: 'setup', types: new Set(['pic', 'de', 'listen', 'choice']), onlyIds: null, questions: [], idx: 0, checked: false, points: 0 };
+const test = { phase: 'setup', types: new Set(['pic', 'de', 'listen', 'choice']), onlyIds: null, questions: [], idx: 0, checked: false, points: 0, timer: null };
 
 function startTest(set, ids = null) {
   test.phase = 'setup';
@@ -816,14 +938,12 @@ function renderTest() {
       <button class="btn ghost small" data-action="test-play" data-slow="1">${icon('snail')} Langsam</button></div>`;
   else prompt = `<div class="cw-line"><p class="cw-foreign xl" lang="${set.lang}">${esc(w.foreign)}</p>${sayBtn(w.foreign, set.lang)}</div>`;
 
-  const accents = set.lang === 'fr' ? ['é', 'è', 'ê', 'ë', 'à', 'â', 'ç', 'î', 'ï', 'ô', 'û', 'ù', 'œ', '’'] : [];
   const answerArea = q.type === 'choice'
     ? `<div class="choices">${q.options.map((o, i) => `<button class="choice" data-action="test-choice" data-i="${i}" lang="de"><kbd>${i + 1}</kbd><span>${esc(o)}</span></button>`).join('')}</div>`
     : `<form class="answer-form" id="t-form" autocomplete="off">
         <input id="t-answer" type="text" lang="${set.lang}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Dein Wort …" aria-label="Deine Antwort">
         <button class="btn primary" type="submit" id="t-submit">Prüfen</button>
-      </form>
-      ${accents.length ? `<div class="accent-keys" aria-label="Sonderzeichen">${accents.map((c) => `<button type="button" class="key" data-action="accent" data-ch="${c}">${c}</button>`).join('')}</div>` : ''}`;
+      </form>`;
 
   v.innerHTML = `<section class="mode test-mode">
     <div class="mode-bar"><h1 class="mode-title">Test</h1></div>
@@ -860,7 +980,7 @@ function checkTyped() {
   const w = set.words.find((x) => x.id === q.wid);
   const input = $('#t-answer');
   if (!input.value.trim()) { input.focus(); input.classList.add('nudge'); setTimeout(() => input.classList.remove('nudge'), 400); return; }
-  const r = checkAnswer(input.value, w, set.lang);
+  const r = checkAnswer(input.value, w);
   q.answer = input.value.trim();
   q.result = r.status;
   test.points += r.status === 'correct' ? 1 : r.status === 'almost' ? 0.5 : 0;
@@ -868,11 +988,18 @@ function checkTyped() {
   input.readOnly = true;
   input.classList.add(r.status);
   $('#t-submit').innerHTML = `Weiter ${icon('right')}`;
-  $$('.accent-keys .key').forEach((k) => { k.disabled = true; });
   $('#t-feedback').innerHTML = feedbackHTML(set, w, r.status, r.note);
   (r.status === 'correct' ? sfx.good : r.status === 'almost' ? sfx.almost : sfx.bad)();
   updateTally();
   $('#t-submit').focus();
+  if (r.status === 'correct') autoNextQuestion();
+}
+
+/** Richtig → nach kurzer Zeit automatisch zur nächsten Frage */
+function autoNextQuestion() {
+  clearTimeout(test.timer);
+  const idx = test.idx;
+  test.timer = setTimeout(() => { if (ui.view === 'test' && test.phase === 'q' && test.idx === idx && test.checked) nextQuestion(); }, AUTO_NEXT_MS);
 }
 
 function chooseOption(i) {
@@ -897,6 +1024,7 @@ function chooseOption(i) {
   (ok ? sfx.good : sfx.bad)();
   updateTally();
   $('#t-next').focus();
+  if (ok) autoNextQuestion();
 }
 
 function updateTally() {
@@ -905,6 +1033,7 @@ function updateTally() {
 }
 
 function nextQuestion() {
+  clearTimeout(test.timer);
   stopSpeaking();
   test.idx++;
   if (test.idx >= test.questions.length) {
@@ -955,12 +1084,4 @@ function renderTestResult(set) {
       </ol>
     </div>
   </section>`;
-}
-
-function insertAccent(ch) {
-  const inp = $('#t-answer');
-  if (!inp || inp.readOnly) return;
-  const s = inp.selectionStart ?? inp.value.length, e = inp.selectionEnd ?? inp.value.length;
-  inp.setRangeText(ch, s, e, 'end');
-  inp.focus();
 }

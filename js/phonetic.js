@@ -35,7 +35,7 @@ const ipa = (p) => ARPA_IPA[p] || p.toLowerCase();
 const phState = { status: 'idle', progress: 0, error: '', engine: null, loading: null, listeners: new Set() };
 const phCfg = () => ({ on: false, passMin: 60, ...(db.settings.phonetic || {}) });
 const phoneticOn = () => phCfg().on;
-const phoneticFor = (lang) => phoneticOn() && lang === 'en';
+const phoneticFor = () => phoneticOn();
 
 function phNotify() { phState.listeners.forEach((fn) => { try { fn(phState); } catch { /* */ } }); }
 
@@ -269,16 +269,10 @@ async function assessSpoken(word, { onStart, onLevel, onPhase } = {}) {
   const passMin = phCfg().passMin;
   if (!best.silent) {
     best.passMin = passMin;
-    best.ok = best.score >= passMin && Math.min(...best.phones.map((p) => p.score)) >= Math.round(passMin / 3);
+    best.ok = best.score >= passMin; // ab der eingestellten Punktzahl (Standard 60) ist es richtig
   }
   best.peak = rec.peak;
   return best;
-}
-
-function phPhonesHTML(res) {
-  if (!res?.phones) return '';
-  const lim = Math.round((res.passMin || 60) * 0.75);
-  return `<span class="phonemes" title="Erwarteter Laut, darunter Punkte; rot = nicht deutlich, dann steht da, was eher zu hören war">${res.phones.map((p) => `<span class="ph ${p.score < lim ? 'weak' : ''}">${esc(ipa(p.exp))}<small>${p.score}</small>${p.score < lim && p.heard !== p.exp ? `<em>${esc(p.heard === '[SIL]' ? 'nichts' : ipa(p.heard))}</em>` : ''}</span>`).join('')}</span>`;
 }
 
 function phErrorText(code) {

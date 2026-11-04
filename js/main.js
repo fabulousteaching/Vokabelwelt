@@ -7,6 +7,7 @@ function startMode(mode, opts = {}) {
   if (mode === 'cards') startCards(set, opts);
   if (mode === 'match') startMatch(set, opts.variant || (set.words.some((w) => hasPicture(w, set.lang)) ? 'pic' : 'de'));
   if (mode === 'speak') startSpeak(set, opts.ids);
+  if (mode === 'dictation') startDictation(set, opts.ids);
   if (mode === 'test') startTest(set, opts.ids);
   go(mode);
 }
@@ -17,17 +18,22 @@ const actions = {
   settings: () => openSettings(),
   'close-modal': () => closeModal(),
 
-  /* Startseite */
-  'draft-lang': (el) => {
-    ui.draft.lang = el.dataset.lang; ui.draft.langManual = true;
-    $('#lang-seg').innerHTML = langSeg(ui.draft.lang, 'draft-lang');
-    $('#lang-hint').textContent = '';
-    renderPreview();
+  /* Konto */
+  login: (el) => openLogin(el.dataset.mode || 'login'),
+  account: () => openAccount(),
+  'cloud-sync': () => cloudSync(),
+  logout: async () => {
+    closeModal(true);
+    const n = await cloudLogout();
+    go('home');
+    toast(n ? `Abgemeldet. ${n === 1 ? 'Deine Portion bleibt' : `Deine ${n} Portionen bleiben`} im Konto und ${n === 1 ? 'wurde' : 'wurden'} von diesem Gerät entfernt.` : 'Abgemeldet.');
   },
+
+  /* Startseite */
   'draft-swap': () => { ui.draft.swap = !ui.draft.swap; renderPreview(); },
   'load-example': (el) => {
     const ex = EXAMPLES[+el.dataset.i];
-    ui.draft = { text: ex.text, lang: ex.lang, langManual: true, name: ex.name, swap: false };
+    ui.draft = { text: ex.text, name: ex.name, swap: false };
     render();
     $('#vocab-input')?.focus();
     $('#new-set-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -36,6 +42,7 @@ const actions = {
   'delete-set-no': () => { ui.confirmDelete = null; render(); },
   'delete-set-yes': (el) => {
     db.sets = db.sets.filter((s) => s.id !== el.dataset.id);
+    cloudDeleteSet(el.dataset.id);
     ui.confirmDelete = null; saveDB(); render(); toast('Gelöscht.');
   },
 
@@ -47,9 +54,9 @@ const actions = {
     $('#edit-rows .edit-row:last-child .e-foreign')?.focus();
   },
   'edit-remove-row': (el) => el.closest('.edit-row')?.remove(),
-  'edit-lang': (el) => { ui.modal.editLang = el.dataset.lang; $('#edit-lang').innerHTML = langSeg(ui.modal.editLang, 'edit-lang'); },
   share: () => openShare(currentSet()),
   copy: (el) => copyFrom(el.dataset.target),
+  'copy-link': () => { if (ui.share?.url) copyText(ui.share.url); },
   'qr-full': () => openQRFull(),
   'qr-full-close': () => closeQRFull(),
   'qr-save': () => saveQRImage(),
@@ -58,8 +65,7 @@ const actions = {
     const style = el.dataset.style;
     set.picStyle = style;
     if (style === 'clipart') net.clipartDown = false;
-    if (style === 'picto') net.arasaacDown = false;
-    if (style === 'photo') net.wikiDown = false;
+    if (style === 'picto') { net.arasaacDown = false; net.gsDown = false; }
     saveDB();
     $$('.deck-controls .seg-btn').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.style === style)));
     if (picJobs.has(set.id)) { toast('Einen Moment – die Bilder werden noch gesucht.'); return; }
@@ -97,17 +103,13 @@ const actions = {
     const w = set.words.find((x) => x.id === ui.modal?.wid);
     if (!w) return;
     w.pic = null; w.picStatus = 'pending';
-    net.wikiDown = false;
     refreshPicDialogHead(set, w); refreshDeck(set, w);
     w.pic = await autoPicture(w, set);
     w.picStatus = 'done';
     saveDB(); refreshPicDialogHead(set, w); refreshDeck(set, w);
   },
-  'photo-more': () => ui.modal?.photoMore?.(),
-  'photo-cat': (el) => {
-    $$('[data-action="photo-cat"]').forEach((b) => b.setAttribute('aria-pressed', String(b === el)));
-    ui.modal?.photoCat?.(el.dataset.cat);
-  },
+  'clip-kind': (el) => ui.modal?.clipKind?.(el.dataset.kind),
+  'emoji-cat': (el) => ui.modal?.emojiCat?.(el.dataset.cat),
   'draw-one': async (el) => {
     const set = currentSet();
     const w = set.words.find((x) => x.id === ui.modal?.wid);
@@ -153,10 +155,13 @@ const actions = {
     db.settings.accent = el.dataset.accent; saveDB();
     $$('[data-action="set-accent"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.accent === db.settings.accent)));
   },
-  'voice-test': (el) => speak(el.dataset.lang === 'fr' ? 'Bonjour ! La pomme est rouge.' : 'Hello! The apple is red.', el.dataset.lang),
-  wipe: (el) => {
-    if (!el.dataset.sure) { el.dataset.sure = '1'; el.innerHTML = `${icon('trash')} Wirklich alles löschen? Nochmal tippen`; return; }
-    db.sets = []; saveNow(); closeModal(true); go('home'); toast('Alles gelöscht.');
+  'voice-test': () => speak('Hello! The apple is red.', 'en'),
+  wipe: async (el) => {
+    if (!el.dataset.sure) { el.dataset.sure = '1'; el.innerHTML = `${icon('trash')} Wirklich alles auf diesem Gerät löschen? Nochmal tippen`; return; }
+    const wasIn = !!cloud.user;
+    if (wasIn) await cloudLogout();
+    db.sets = []; saveNow(); closeModal(true); go('home');
+    toast(wasIn ? 'Alles auf diesem Gerät gelöscht und abgemeldet. Dein Konto bleibt erhalten.' : 'Alles gelöscht.');
   },
 
   /* Allgemein */
@@ -219,7 +224,7 @@ const actions = {
     const out = $('#mic-test-out');
     if (!out) return;
     if (!canListen()) { out.textContent = speechBrowserMissing ? 'Dieser Browser (Brave oder Opera) hat keine Spracherkennung. Nimm Chrome, Edge oder Safari.' : micErrorText('not-supported', 'en'); return; }
-    const lang = currentSet()?.lang || 'en';
+    const lang = 'en';
     const bar = $('#mic-test-level');
     const setBar = (lv) => { if (bar) bar.style.setProperty('--lv', lv.toFixed(3)); };
     el.disabled = true;
@@ -236,11 +241,11 @@ const actions = {
       stopMeter(); setBar(0);
     }
     // 2) Spracherkennung
-    out.textContent = `Ich höre zu – sag etwas auf ${LANGS[lang].name}!`;
+    out.textContent = 'Ich höre zu – sag etwas auf Englisch!';
     try {
       const alts = await listenOnce(lang, {
         track: same && stream && db.settings.micId ? stream.getAudioTracks()[0] : null,
-        onStart: () => { out.textContent = `Ich höre zu – sag etwas auf ${LANGS[lang].name}!`; },
+        onStart: () => { out.textContent = 'Ich höre zu – sag etwas auf Englisch!'; },
         onInterim: (t) => { out.textContent = `Ich höre: „${t}“`; },
       });
       if (same && stream) peak = micMeter.peak;
@@ -274,6 +279,29 @@ const actions = {
     renderSpeak();
   },
 
+  /* Hören & Schreiben */
+  'dict-play': (el) => {
+    const set = currentSet();
+    const w = dictWord(set);
+    if (w) speak(w.foreign, set.lang, { slow: !!el.dataset.slow });
+    $('#d-answer')?.focus();
+  },
+  'dict-hint': () => {
+    const set = currentSet();
+    const w = dictWord(set);
+    dict.showDe = true;
+    const h = $('#dict-hint');
+    if (h && w) h.innerHTML = `<p class="cw-german" lang="de">${esc(w.german)}</p>`;
+    $('#d-answer')?.focus();
+  },
+  'dict-unknown': () => checkDict(true),
+  'dict-again': (el) => {
+    const set = currentSet();
+    const hard = [...dict.firstTry].filter(([, ok]) => !ok).map(([id]) => id);
+    startDictation(set, el.dataset.which === 'hard' && hard.length ? hard : null);
+    renderDictation();
+  },
+
   /* Test */
   'test-start': () => {
     const set = currentSet();
@@ -292,7 +320,6 @@ const actions = {
   },
   'test-choice': (el) => chooseOption(+el.dataset.i),
   'test-next': () => nextQuestion(),
-  accent: (el) => insertAccent(el.dataset.ch),
   'test-restart': () => { startTest(currentSet()); renderTest(); },
   'test-retry-wrong': () => {
     const ids = [...new Set(test.questions.filter((q) => q.result !== 'correct').map((q) => q.wid))];
@@ -316,11 +343,6 @@ document.addEventListener('click', (e) => {
   if (el.type === 'submit' && el.closest('form')) return; // Formular kümmert sich selbst
   e.preventDefault();
   fn(el, e);
-});
-
-// Sonderzeichen-Tasten sollen das Eingabefeld nicht verlassen
-document.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('.accent-keys .key')) e.preventDefault();
 });
 
 document.addEventListener('keydown', (e) => {
@@ -357,7 +379,7 @@ async function importFromHash() {
     if (existing) { openSet(existing.id); toast(`„${existing.name}“ ist schon da.`); return true; }
     const data = await decodeShare(code);
     if (!data.rows.length) throw new Error('leer');
-    const set = newSet({ name: data.name, lang: data.lang, rows: data.rows, picStyle: data.picStyle });
+    const set = newSet({ name: data.name, lang: 'en', rows: data.rows, picStyle: data.picStyle });
     set.shareId = share;
     saveDB();
     openSet(set.id);
@@ -377,5 +399,6 @@ async function boot() {
   setTimeout(initClaude, 1500);
   if (!(await importFromHash())) render();
   window.addEventListener('hashchange', importFromHash);
+  cloudInit();
 }
 boot();
