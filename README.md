@@ -68,6 +68,18 @@ Alles wird nur im Browser gespeichert (localStorage). Es gibt keinen Server und 
 
 Man kann `index.html` auch einfach per Doppelklick öffnen. Für Spracherkennung und Teilen-Links ist die Online-Version aber besser.
 
+## Lauterkennung (Versuch, nur Englisch)
+
+In den Einstellungen lässt sich eine **Lauterkennung** einschalten. Sie fragt nicht, welches *Wort* gesagt wurde, sondern prüft jeden einzelnen *Laut*:
+
+1. Das Zielwort wird in Lautschrift übersetzt („bread“ → b r ɛ d).
+2. Ein Sprachmodell bestimmt alle 10 Millisekunden, welcher Laut zu hören ist.
+3. Jeder erwartete Laut bekommt 0–100 Punkte, je nachdem, wie deutlich genau dieser Laut zu hören war („Goodness of Pronunciation“). Rot markierte Laute klangen anders; darunter steht, was eher zu hören war.
+
+Alles läuft auf dem Gerät, keine Aufnahme verlässt es. Beim ersten Mal werden ca. 140 MB geladen (Sprachmodell [charsiu/en_w2v2_fc_10ms](https://huggingface.co/charsiu) über [charsiu-js](https://github.com/mnaoizy/charsiu-js), MIT; [onnxruntime-web](https://onnxruntime.ai), MIT) und im Browser gespeichert. Auf älteren Handys kann es langsam sein. Für Französisch gibt es dieses Modell nicht – dort prüft weiter die Spracherkennung des Browsers.
+
+Mit „Ein Wort zählt ab … Punkten“ (Standard 60) stellst du ein, wie streng bewertet wird. Das Modell wurde mit erwachsenen Muttersprachlern trainiert; wie gut es Kinderstimmen bewertet, muss sich im Einsatz zeigen.
+
 ## Browser
 
 - **Spracherkennung** gibt es in Chrome, Edge und Safari (auch auf iPad/iPhone). Firefox kann das nicht; dort bewerten sich die Kinder selbst (anhören und vergleichen).
@@ -83,6 +95,7 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt:
 | `css/styles.css` | Gestaltung |
 | `js/picture-data.js` | Bildwörterbuch (Emoji/Farbe ↔ Englisch/Französisch/Deutsch) |
 | `js/core.js` | Parser, Antwortprüfung, Speicher, Bildsuche, Vorlesen, Spracherkennung |
+| `js/phonetic.js` | Lauterkennung (Versuch): Laut für Laut auf dem Gerät |
 | `js/ui.js` | Startseite, Übersicht, Dialoge |
 | `js/modes.js` | Lernkarten, Zuordnen, Aussprechen, Test |
 | `js/main.js` | Aktionen und Start |

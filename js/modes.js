@@ -406,7 +406,8 @@ function startSpeak(set, ids) {
   speakM.idx = 0;
   speakM.results = new Map();
   speakM.finished = false;
-  speakM.fallback = !canListen();
+  speakM.noPh = false;
+  speakM.fallback = !canListen() && !phoneticFor(set.lang);
   speakM.reason = canListen() ? '' : (speechBrowserMissing ? 'browser' : 'unsupported');
   speakM.error = '';
   if (speakM.show === 'pic' && !set.words.some((w) => hasPicture(w, set.lang))) speakM.show = 'word';
@@ -487,6 +488,15 @@ function speakZone(set, w) {
         <button class="btn ok" data-action="speak-self" data-ok="1">${icon('check')} Hab ich richtig gesagt</button>
       </div>`;
   }
+  if (s === 'loading') {
+    const pct = Math.round((phState.progress || 0) * 100);
+    return `<div class="ph-wait"><p class="mic-label">Die Lauterkennung wird geladen … <span id="ph-pct">${pct}</span> %</p>
+      <div class="ph-progress"><span id="ph-bar" style="width:${pct}%"></span></div>
+      <p class="muted small">Nur beim ersten Mal: ca. ${PH.MB} MB. Danach ist sie auf diesem Gerät gespeichert.</p></div>`;
+  }
+  if (s === 'thinking') {
+    return `<p class="mic-label"><span class="spinner"></span> Ich höre mir die Laute an …</p>`;
+  }
   if (s === 'starting' || s === 'listening') {
     return `<button class="mic ${s === 'listening' ? 'listening' : 'starting'}" data-action="listen" aria-label="Aufnahme beenden">${icon('mic')}</button>
       <p class="mic-label">${s === 'listening' ? 'Ich höre zu … sprich jetzt!' : 'Mikrofon wird eingeschaltet …'}</p>
@@ -494,11 +504,26 @@ function speakZone(set, w) {
       <p class="heard-live" id="heard-live" aria-live="polite">${speakM.live ? `„${esc(speakM.live)}“` : ''}</p>`;
   }
   if (s === 'error') {
-    return `<div class="banner bad">${icon('mic')}<div><strong>Das Mikrofon hat nicht geklappt.</strong> ${esc(micErrorText(speakM.error, set.lang))}
+    const isPh = String(speakM.error).startsWith('ph-');
+    return `<div class="banner bad">${icon('mic')}<div><strong>${isPh ? 'Die Lauterkennung hat nicht geklappt.' : 'Das Mikrofon hat nicht geklappt.'}</strong> ${esc(isPh ? phErrorText(speakM.error) : micErrorText(speakM.error, set.lang))}
         <span class="err-code">Fehlercode: ${esc(speakM.error)}</span></div></div>
       <div class="row center">
         <button class="btn primary" data-action="listen">${icon('mic')} Nochmal versuchen</button>
-        <button class="btn ghost" data-action="speak-fallback">Ohne Mikrofon üben</button>
+        ${isPh ? '<button class="btn ghost" data-action="speak-no-ph">Ohne Lauterkennung weiter</button>' : '<button class="btn ghost" data-action="speak-fallback">Ohne Mikrofon üben</button>'}
+      </div>`;
+  }
+  if (s === 'ok' && speakM.ph) {
+    return `<div class="banner good">${icon('check')}<div><strong>Richtig! ${speakM.ph.score} von 100 Punkten.</strong>${phPhonesHTML(speakM.ph)}</div></div>
+      <div class="row center"><button class="btn primary" data-action="speak-next">Weiter ${icon('right')}</button></div>`;
+  }
+  if (s === 'bad' && speakM.ph) {
+    const r = speakM.ph;
+    return `<div class="banner bad">${icon('x')}<div><strong>Noch nicht ganz: ${r.score} von 100 Punkten</strong> (nötig: ${r.passMin}). Rot markierte Laute klangen anders – darunter steht, was eher zu hören war.
+        ${phPhonesHTML(r)}</div></div>
+      <div class="row center">${listenBtns}</div>
+      <div class="row center">
+        <button class="btn primary" data-action="listen">${icon('mic')} Nochmal sprechen</button>
+        <button class="btn ghost" data-action="speak-skip">Überspringen ${icon('right')}</button>
       </div>`;
   }
   if (s === 'ok') {
@@ -547,13 +572,19 @@ async function doListen() {
   const set = currentSet();
   const w = speakWord(set);
   if (!w) return;
-  if (speakM.state === 'listening' || speakM.state === 'starting') { stopListening(); return; }
+  if (speakM.state === 'listening' || speakM.state === 'starting') {
+    if (speakM.usingPh) { phRec.stop?.(); return; }
+    stopListening(); return;
+  }
+  if (speakM.state === 'loading' || speakM.state === 'thinking') return;
   stopSpeaking();
   clearTimeout(speakM.timer);
   speakM.state = 'starting';
   speakM.live = '';
   speakM.peak = null;
   speakM.meter = false;
+  speakM.ph = null;
+  if (phoneticFor(set.lang) && !speakM.noPh) { await doListenPhonetic(set, w); return; }
   updateSpeakZone();
   let track = null;
   if (meterDuringListen()) {
@@ -619,8 +650,55 @@ function markSpeakOk(w) {
   if (!speakM.results.has(w.id)) speakM.results.set(w.id, speakM.attempts === 1 && !speakM.revealed ? 'ok' : 'retry');
   sfx.good();
   revealSpeakWord();
-  speakM.timer = setTimeout(() => { if (ui.view === 'speak' && speakM.state === 'ok') nextSpeak(); }, 1800);
+  speakM.timer = setTimeout(() => { if (ui.view === 'speak' && speakM.state === 'ok') nextSpeak(); }, speakM.ph ? 2800 : 1800);
 }
+
+/* Lauterkennung (Versuch): Laut für Laut auf dem Gerät prüfen */
+async function doListenPhonetic(set, w) {
+  speakM.usingPh = true;
+  try {
+    if (!phState.engine) {
+      speakM.state = 'loading';
+      updateSpeakZone();
+      await loadPhoneticEngine();
+      if (ui.view !== 'speak' || speakWord(set) !== w) return;
+      speakM.state = 'starting';
+    }
+    updateSpeakZone();
+    const res = await assessSpoken(w, {
+      onStart: () => { if (speakWord(set) === w) { speakM.state = 'listening'; speakM.meter = true; updateSpeakZone(); } },
+      onLevel: (lv) => { const b = $('#mic-level'); if (b) b.style.setProperty('--lv', lv.toFixed(3)); },
+      onPhase: () => { speakM.state = 'thinking'; updateSpeakZone(); },
+    });
+    if (ui.view !== 'speak' || speakWord(set) !== w) return;
+    speakM.attempts++;
+    if (res.silent) {
+      speakM.ph = null; speakM.heard = ''; speakM.peak = res.peak; speakM.state = 'bad';
+      speakM.silentTries = (speakM.silentTries || 0) + 1;
+    } else {
+      speakM.ph = res; speakM.heard = ''; speakM.silentTries = 0;
+      if (res.ok) markSpeakOk(w); else { speakM.state = 'bad'; sfx.bad(); }
+    }
+  } catch (err) {
+    if (ui.view !== 'speak' || speakWord(set) !== w) return;
+    speakM.state = 'error';
+    speakM.error = String(err);
+    sfx.bad();
+  } finally {
+    speakM.usingPh = false;
+    speakM.meter = false;
+  }
+  updateSpeakZone();
+}
+
+/* Fortschritt beim Laden anzeigen (Aussprechen und Einstellungen) */
+phState.listeners.add((st) => {
+  const pct = Math.round((st.progress || 0) * 100);
+  const a = $('#ph-pct'), b = $('#ph-bar');
+  if (a) a.textContent = pct;
+  if (b) b.style.width = pct + '%';
+  updatePhSettings();
+});
 
 function nextSpeak() {
   clearTimeout(speakM.timer);

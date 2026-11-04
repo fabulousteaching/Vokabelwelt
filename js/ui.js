@@ -930,6 +930,7 @@ function openSettings() {
       <div class="row"><button type="button" class="btn small secondary" data-action="voice-test" data-lang="en">${icon('speaker')} Englisch testen</button>
         <button type="button" class="btn small secondary" data-action="voice-test" data-lang="fr">${icon('speaker')} Französisch testen</button></div>`
         : '<p class="warn">Dieser Browser kann nicht vorlesen.</p>'}
+      ${phoneticSettingsHTML(s)}
       <div class="field"><span class="label">Mikrofon und Spracherkennung</span>
         ${canListen()
           ? `<label class="field" for="mic-device"><span class="small muted">Mikrofon</span>
@@ -945,6 +946,10 @@ function openSettings() {
     </div>`, { label: 'Einstellungen' });
   const m = ui.modal.el;
   fillMicSelect();
+  updatePhSettings();
+  m.addEventListener('input', (e) => {
+    if (e.target.id === 'ph-min') { const v = $('#ph-min-val'); if (v) v.textContent = e.target.value; }
+  });
   m.addEventListener('change', (e) => {
     const t = e.target;
     if (t.id === 'mic-device') { s.micId = t.value; saveDB(); }
@@ -952,8 +957,39 @@ function openSettings() {
     if (t.id === 'set-autospeak') s.autoSpeak = t.checked;
     if (t.id === 'set-rate') s.rate = parseFloat(t.value);
     if (t.id?.startsWith('voice-')) s.voice = { ...(s.voice || {}), [t.dataset.lang]: t.value };
+    if (t.id === 'ph-on' || t.id === 'ph-min') {
+      s.phonetic = { ...phCfg(), on: $('#ph-on').checked, passMin: parseInt($('#ph-min').value, 10) || 60 };
+      if (t.id === 'ph-on' && t.checked && !phState.engine) loadPhoneticEngine().catch(() => {});
+    }
     saveDB();
   });
+}
+
+/* ---------- Lauterkennung (Versuch) ---------- */
+function phoneticSettingsHTML(s) {
+  const c = { on: false, passMin: 60, ...(s.phonetic || {}) };
+  return `<div class="field ph-box">
+    <span class="label">Lauterkennung (Versuch, nur Englisch)</span>
+    <p class="muted small">Prüft jeden einzelnen Laut statt nur das Wort. So fällt auch auf, wenn ein Wort so ausgesprochen wird, wie es geschrieben ist. Läuft ganz auf diesem Gerät, keine Aufnahme verlässt es. Beim ersten Mal werden ca. ${PH.MB} MB geladen und gespeichert. Auf älteren Handys kann es langsam sein.</p>
+    <label class="switch"><input type="checkbox" id="ph-on" ${c.on ? 'checked' : ''}><span>Lauterkennung einschalten</span></label>
+    <div class="row"><button type="button" class="btn small secondary" data-action="ph-load">${icon('upload')} Jetzt laden</button><span class="small" id="ph-status"></span></div>
+    <div class="ph-progress" id="ph-progress-set" hidden><span id="ph-bar-set"></span></div>
+    <label for="ph-min"><span class="small muted">Ein Wort zählt ab <strong id="ph-min-val">${c.passMin}</strong> von 100 Punkten</span></label>
+    <input type="range" id="ph-min" min="30" max="90" step="5" value="${c.passMin}">
+    <p class="muted small">Für Französisch gibt es dieses Sprachmodell nicht. Dort prüft weiter die normale Spracherkennung.</p>
+  </div>`;
+}
+
+async function updatePhSettings() {
+  const st = $('#ph-status'), box = $('#ph-progress-set'), bar = $('#ph-bar-set');
+  if (!st) return;
+  const pct = Math.round((phState.progress || 0) * 100);
+  if (box) box.hidden = phState.status !== 'loading';
+  if (bar) bar.style.width = pct + '%';
+  if (phState.status === 'loading') st.textContent = `Wird geladen … ${pct} %`;
+  else if (phState.status === 'ready') st.textContent = 'Geladen und bereit ✓';
+  else if (phState.status === 'error') st.textContent = `Laden hat nicht geklappt: ${phState.error}`;
+  else st.textContent = (await phIsCached()) ? 'Auf diesem Gerät gespeichert – wird beim Üben geladen.' : 'Noch nicht geladen.';
 }
 
 async function fillMicSelect() {

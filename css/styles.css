@@ -482,6 +482,16 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); outline: 
 .mic-level span { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--green); transform-origin: left; transform: scaleX(var(--lv)); transition: transform .06s linear; }
 .mic-level.big { width: 100%; height: 14px; }
 .help-line { display: block; margin-top: .4rem; font-size: .92rem; color: var(--ink-2); }
+.phonemes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: .55rem; }
+.ph { display: inline-grid; justify-items: center; min-width: 30px; padding: 3px 6px; border-radius: 8px; background: rgba(255, 255, 255, .7); font-size: 1rem; font-weight: 700; color: #18264A; line-height: 1.15; }
+.ph small { font-size: .62rem; font-weight: 400; color: #5b6784; font-variant-numeric: tabular-nums; }
+.ph em { font-style: normal; font-size: .72rem; font-weight: 400; }
+.ph.weak { background: var(--red); color: #fff; }
+.ph.weak small, .ph.weak em { color: #fff; }
+.ph-box { padding: 1rem; border-radius: 16px; background: var(--desk); display: grid; gap: .6rem; }
+.ph-wait { display: grid; justify-items: center; gap: .6rem; width: min(100%, 420px); text-align: center; }
+.ph-progress { width: 100%; height: 12px; border-radius: 99px; background: var(--desk-deep); overflow: hidden; }
+.ph-progress span { display: block; height: 100%; width: 0; background: var(--blue); border-radius: 99px; transition: width .2s; }
 .heard-live { min-height: 1.6em; font-size: 1.25rem; font-weight: 700; color: var(--blue-ink); }
 .err-code { display: block; margin-top: .3rem; font-size: .8rem; color: var(--ink-3); }
 .word-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }

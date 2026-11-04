@@ -201,6 +201,13 @@ const actions = {
   },
   'speak-skip': () => { const set = currentSet(); const w = speakWord(set); if (w && !speakM.results.has(w.id)) speakM.results.set(w.id, 'skip'); nextSpeak(); },
   'speak-next': () => nextSpeak(),
+  'ph-load': () => { loadPhoneticEngine().catch(() => {}); updatePhSettings(); },
+  'speak-no-ph': () => {
+    speakM.noPh = true;
+    speakM.state = 'idle';
+    updateSpeakZone();
+    toast('Für diese Runde mit der normalen Spracherkennung.');
+  },
   'speak-fallback': () => {
     stopListening(true);
     speakM.fallback = true;
