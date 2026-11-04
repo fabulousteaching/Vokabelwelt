@@ -194,6 +194,31 @@ const actions = {
   },
   'speak-skip': () => { const set = currentSet(); const w = speakWord(set); if (w && !speakM.results.has(w.id)) speakM.results.set(w.id, 'skip'); nextSpeak(); },
   'speak-next': () => nextSpeak(),
+  'speak-fallback': () => {
+    stopListening(true);
+    speakM.fallback = true;
+    speakM.reason = speakM.error && speakM.error !== 'busy' ? speakM.error : 'chosen';
+    speakM.state = 'idle';
+    updateSpeakZone();
+  },
+  'mic-test': async (el) => {
+    const out = $('#mic-test-out');
+    if (!out) return;
+    if (!canListen()) { out.textContent = speechBrowserMissing ? 'Dieser Browser (Brave oder Opera) hat keine Spracherkennung. Nimm Chrome, Edge oder Safari.' : micErrorText('not-supported', 'en'); return; }
+    const lang = currentSet()?.lang || 'en';
+    el.disabled = true;
+    out.textContent = 'Mikrofon wird eingeschaltet …';
+    try {
+      const alts = await listenOnce(lang, {
+        onStart: () => { out.textContent = `Ich höre zu – sag etwas auf ${LANGS[lang].name}!`; },
+        onInterim: (t) => { out.textContent = `Ich höre: „${t}“`; },
+      });
+      out.textContent = alts.length ? `Es klappt! Erkannt: „${alts[0]}“` : 'Das Mikrofon ist an, aber ich habe nichts gehört. Sprich lauter oder näher am Mikrofon.';
+    } catch (err) {
+      out.textContent = err === 'no-speech' ? 'Das Mikrofon ist an, aber ich habe nichts gehört. Sprich lauter oder näher am Mikrofon.' : `${micErrorText(err, lang)} (Fehlercode: ${err})`;
+    }
+    el.disabled = false;
+  },
   'speak-self': (el) => {
     const set = currentSet();
     const w = speakWord(set);

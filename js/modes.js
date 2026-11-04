@@ -407,7 +407,8 @@ function startSpeak(set, ids) {
   speakM.results = new Map();
   speakM.finished = false;
   speakM.fallback = !canListen();
-  speakM.reason = canListen() ? '' : 'unsupported';
+  speakM.reason = canListen() ? '' : (speechBrowserMissing ? 'browser' : 'unsupported');
+  speakM.error = '';
   if (speakM.show === 'pic' && !set.words.some((w) => hasPicture(w, set.lang))) speakM.show = 'word';
   resetSpeakWord();
 }
@@ -476,8 +477,9 @@ function speakZone(set, w) {
   if (speakM.fallback) {
     const why = speakM.reason === 'unsupported'
       ? 'Dieser Browser kann leider keine Sprache erkennen (am besten klappt es mit Chrome, Edge oder Safari).'
-      : speakM.reason === 'network' ? 'Die Spracherkennung braucht Internet und ist gerade nicht erreichbar.'
-        : 'Das Mikrofon ist nicht freigegeben. Erlaube den Zugriff oben in der Adresszeile und lade die Seite neu.';
+      : speakM.reason === 'browser' ? 'Dieser Browser (Brave oder Opera) hat keine Spracherkennung. Mit Chrome, Edge oder Safari klappt es.'
+        : speakM.reason === 'chosen' ? 'Du übst ohne Mikrofon.'
+          : esc(micErrorText(speakM.reason, set.lang));
     return `<p class="note">${why} So kannst du trotzdem üben: Sprich das Wort laut, hör es dir dann an und vergleiche.</p>
       <div class="row center">${listenBtns}</div>
       <div class="row center">
@@ -485,9 +487,18 @@ function speakZone(set, w) {
         <button class="btn ok" data-action="speak-self" data-ok="1">${icon('check')} Hab ich richtig gesagt</button>
       </div>`;
   }
-  if (s === 'listening') {
-    return `<button class="mic listening" data-action="listen" aria-label="Aufnahme beenden">${icon('mic')}</button>
-      <p class="mic-label">Ich höre zu … sprich jetzt!</p>`;
+  if (s === 'starting' || s === 'listening') {
+    return `<button class="mic ${s === 'listening' ? 'listening' : 'starting'}" data-action="listen" aria-label="Aufnahme beenden">${icon('mic')}</button>
+      <p class="mic-label">${s === 'listening' ? 'Ich höre zu … sprich jetzt!' : 'Mikrofon wird eingeschaltet …'}</p>
+      <p class="heard-live" id="heard-live" aria-live="polite">${speakM.live ? `„${esc(speakM.live)}“` : ''}</p>`;
+  }
+  if (s === 'error') {
+    return `<div class="banner bad">${icon('mic')}<div><strong>Das Mikrofon hat nicht geklappt.</strong> ${esc(micErrorText(speakM.error, set.lang))}
+        <span class="err-code">Fehlercode: ${esc(speakM.error)}</span></div></div>
+      <div class="row center">
+        <button class="btn primary" data-action="listen">${icon('mic')} Nochmal versuchen</button>
+        <button class="btn ghost" data-action="speak-fallback">Ohne Mikrofon üben</button>
+      </div>`;
   }
   if (s === 'ok') {
     return `<div class="banner good">${icon('check')}<div><strong>Richtig!</strong>${speakM.heard ? ` Ich habe „${esc(speakM.heard)}“ verstanden.` : ''}</div></div>
@@ -530,13 +541,26 @@ async function doListen() {
   const set = currentSet();
   const w = speakWord(set);
   if (!w) return;
-  if (speakM.state === 'listening') { stopListening(); return; }
+  if (speakM.state === 'listening' || speakM.state === 'starting') { stopListening(); return; }
   stopSpeaking();
   clearTimeout(speakM.timer);
-  speakM.state = 'listening';
+  speakM.state = 'starting';
+  speakM.live = '';
   updateSpeakZone();
   try {
-    const alts = await listenOnce(set.lang);
+    const alts = await listenOnce(set.lang, {
+      onStart: () => {
+        if (speakM.state !== 'starting' || speakWord(set) !== w) return;
+        speakM.state = 'listening';
+        updateSpeakZone();
+      },
+      onInterim: (t) => {
+        speakM.live = t;
+        if (speakM.state === 'starting') { speakM.state = 'listening'; updateSpeakZone(); }
+        const el = $('#heard-live');
+        if (el) el.textContent = `„${t}“`;
+      },
+    });
     if (ui.view !== 'speak' || speakWord(set) !== w) return;
     speakM.attempts++;
     const res = speechMatch(alts, w, set.lang);
@@ -552,14 +576,16 @@ async function doListen() {
       sfx.bad();
     }
   } catch (err) {
-    if (ui.view !== 'speak') return;
-    if (['not-allowed', 'service-not-allowed', 'audio-capture', 'not-supported', 'network', 'language-not-supported'].includes(err)) {
-      speakM.fallback = true;
-      speakM.reason = err === 'network' ? 'network' : err === 'not-supported' || err === 'language-not-supported' ? 'unsupported' : 'mic';
-      speakM.state = 'idle';
-    } else if (err === 'no-speech') {
+    if (ui.view !== 'speak' || speakWord(set) !== w) return;
+    if (err === 'no-speech') {
       speakM.attempts++; speakM.heard = ''; speakM.state = 'bad';
-    } else speakM.state = 'idle';
+    } else if (err === 'aborted') {
+      speakM.state = 'idle';
+    } else {
+      speakM.state = 'error';
+      speakM.error = String(err);
+      sfx.bad();
+    }
   }
   updateSpeakZone();
 }

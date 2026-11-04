@@ -476,7 +476,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); outline: 
 .mic:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--blue-ink); }
 .mic.listening { background: var(--red); color: #fff; box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 55%, transparent); animation: pulse 1.3s ease-out infinite; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 55%, transparent); } 100% { box-shadow: 0 0 0 28px transparent; } }
+.mic.starting { background: var(--ink-3); box-shadow: 0 5px 0 var(--ink-2); }
 .mic-label { font-weight: 700; color: var(--ink-2); }
+.heard-live { min-height: 1.6em; font-size: 1.25rem; font-weight: 700; color: var(--blue-ink); }
+.err-code { display: block; margin-top: .3rem; font-size: .8rem; color: var(--ink-3); }
 .word-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }
 .word-chips li { display: inline-flex; align-items: center; gap: .4rem; background: var(--desk); border-radius: 99px; padding: .25rem .3rem .25rem .9rem; font-weight: 700; }
 .word-chips .say { width: 34px; height: 34px; }

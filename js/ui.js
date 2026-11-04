@@ -872,7 +872,12 @@ function openSettings() {
       <div class="row"><button type="button" class="btn small secondary" data-action="voice-test" data-lang="en">${icon('speaker')} Englisch testen</button>
         <button type="button" class="btn small secondary" data-action="voice-test" data-lang="fr">${icon('speaker')} Französisch testen</button></div>`
         : '<p class="warn">Dieser Browser kann nicht vorlesen.</p>'}
-      <p class="muted small">Spracherkennung: ${canListen() ? 'verfügbar' : 'in diesem Browser nicht verfügbar (am besten Chrome, Edge oder Safari benutzen)'}.</p>
+      <div class="field"><span class="label">Mikrofon und Spracherkennung</span>
+        ${canListen()
+          ? `<div class="row"><button type="button" class="btn small secondary" data-action="mic-test">${icon('mic')} Mikrofon testen</button></div>
+             <p class="muted small" id="mic-test-out" aria-live="polite">Tippe auf „Mikrofon testen“ und sag ein Wort.</p>`
+          : `<p class="muted small">${speechBrowserMissing ? 'Dieser Browser (Brave oder Opera) hat keine Spracherkennung.' : 'Dieser Browser kann keine Sprache erkennen.'} Am besten Chrome, Edge oder Safari benutzen.</p>`}
+      </div>
       <hr>
       <p class="muted small">Alle Vokabeln und Ergebnisse werden nur in diesem Browser gespeichert.</p>
       <button type="button" class="btn small danger-ghost" data-action="wipe">${icon('trash')} Alles löschen</button>
