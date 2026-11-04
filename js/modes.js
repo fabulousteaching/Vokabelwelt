@@ -406,8 +406,7 @@ function startSpeak(set, ids) {
   speakM.idx = 0;
   speakM.results = new Map();
   speakM.finished = false;
-  speakM.noAzure = false;
-  speakM.fallback = !canListen() && !azureReady();
+  speakM.fallback = !canListen();
   speakM.reason = canListen() ? '' : (speechBrowserMissing ? 'browser' : 'unsupported');
   speakM.error = '';
   if (speakM.show === 'pic' && !set.words.some((w) => hasPicture(w, set.lang))) speakM.show = 'word';
@@ -415,7 +414,6 @@ function startSpeak(set, ids) {
 }
 function resetSpeakWord() {
   speakM.state = 'idle'; speakM.heard = ''; speakM.revealed = false; speakM.attempts = 0;
-  speakM.usingAzure = false; speakM.azure = null;
   clearTimeout(speakM.timer);
 }
 const speakWord = (set) => set.words.find((w) => w.id === speakM.ids[speakM.idx]);
@@ -491,49 +489,29 @@ function speakZone(set, w) {
   }
   if (s === 'starting' || s === 'listening') {
     return `<button class="mic ${s === 'listening' ? 'listening' : 'starting'}" data-action="listen" aria-label="Aufnahme beenden">${icon('mic')}</button>
-      <p class="mic-label">${s === 'listening' ? 'Ich höre zu … sprich jetzt!' : 'Mikrofon wird eingeschaltet …'}${speakM.usingAzure ? '<small class="az-note">Genaue Prüfung mit Microsoft Azure</small>' : ''}</p>
+      <p class="mic-label">${s === 'listening' ? 'Ich höre zu … sprich jetzt!' : 'Mikrofon wird eingeschaltet …'}</p>
       ${speakM.meter ? '<div class="mic-level" id="mic-level" aria-hidden="true"><span></span></div>' : ''}
       <p class="heard-live" id="heard-live" aria-live="polite">${speakM.live ? `„${esc(speakM.live)}“` : ''}</p>`;
   }
   if (s === 'error') {
-    const isAz = String(speakM.error).startsWith('azure');
-    return `<div class="banner bad">${icon('mic')}<div><strong>${isAz ? 'Die genaue Aussprache-Prüfung hat nicht geklappt.' : 'Das Mikrofon hat nicht geklappt.'}</strong> ${esc(isAz ? azureErrorText(speakM.error) : micErrorText(speakM.error, set.lang))}
+    return `<div class="banner bad">${icon('mic')}<div><strong>Das Mikrofon hat nicht geklappt.</strong> ${esc(micErrorText(speakM.error, set.lang))}
         <span class="err-code">Fehlercode: ${esc(speakM.error)}</span></div></div>
       <div class="row center">
         <button class="btn primary" data-action="listen">${icon('mic')} Nochmal versuchen</button>
-        ${isAz ? '<button class="btn ghost" data-action="speak-no-azure">Ohne genaue Prüfung weiter</button>' : '<button class="btn ghost" data-action="speak-fallback">Ohne Mikrofon üben</button>'}
+        <button class="btn ghost" data-action="speak-fallback">Ohne Mikrofon üben</button>
       </div>`;
-  }
-  if (s === 'ok' && speakM.azure) {
-    const { res, v } = speakM.azure;
-    return `<div class="banner good">${icon('check')}<div><strong>Richtig! ${v.acc} von 100 Punkten.</strong> ${scoreBar(v.acc, v.min)}${azurePhonemesHTML(res, v.min)}</div></div>
-      <div class="row center"><button class="btn primary" data-action="speak-next">Weiter ${icon('right')}</button></div>`;
   }
   if (s === 'ok') {
-    return `<div class="banner good">${icon('check')}<div><strong>Richtig!</strong>${speakM.heard ? ` Ich habe „${esc(speakM.heard)}“ verstanden.` : ''}${confTag(speakM.conf)}</div></div>
+    return `<div class="banner good">${icon('check')}<div><strong>Richtig!</strong>${speakM.heard ? ` Ich habe „${esc(speakM.heard)}“ verstanden.` : ''}</div></div>
       <div class="row center"><button class="btn primary" data-action="speak-next">Weiter ${icon('right')}</button></div>`;
-  }
-  if (s === 'bad' && speakM.azure) {
-    const { res, v } = speakM.azure;
-    const why = v.missing.length ? `Es fehlt: „${esc(v.missing.join(' '))}“.`
-      : v.acc < v.min ? (v.weak.length > 1 || res.words.length > 1 ? `Noch üben: „${esc(v.weak.join(', '))}“.` : 'Einige Laute klingen noch anders.')
-        : 'Sprich das ganze Wort deutlich.';
-    return `<div class="banner bad">${icon('x')}<div><strong>Noch nicht ganz: ${v.acc} von 100 Punkten</strong> (nötig: ${v.min}). ${why}
-        ${scoreBar(v.acc, v.min)}${azurePhonemesHTML(res, v.min)}</div></div>
-      <div class="row center">${listenBtns}</div>
-      <div class="row center">
-        <button class="btn primary" data-action="listen">${icon('mic')} Nochmal sprechen</button>
-        <button class="btn ghost" data-action="speak-skip">Überspringen ${icon('right')}</button>
-      </div>`;
   }
   if (s === 'bad') {
     const help = speakM.heard ? '' : (silenceHelp(speakM.peak) || 'Wenn das öfter passiert: Einstellungen (oben rechts) → „Mikrofon testen“.');
     const detail = !speakM.heard ? ' Tippe auf das Mikrofon und sprich gleich danach laut und deutlich.'
-      : speakM.note === 'unsure' ? ` Ich habe „${esc(speakM.heard)}“ verstanden, aber nicht deutlich genug. Hör es dir an und sprich es noch einmal ganz genau so.`
-        : speakM.note === 'article' ? ` Ich habe „${esc(speakM.heard)}“ verstanden. Achte auf den Artikel: „${esc(w.foreign)}“.`
+      : speakM.note === 'article' ? ` Ich habe „${esc(speakM.heard)}“ verstanden. Achte auf den Artikel: „${esc(w.foreign)}“.`
           : ` Ich habe „${esc(speakM.heard)}“ verstanden. Richtig ist „${esc(w.foreign)}“.`;
     return `<div class="banner bad">${icon('x')}<div><strong>${speakM.heard ? 'Noch nicht ganz.' : 'Ich habe nichts gehört.'}</strong>
-        ${detail}${speakM.heard ? confTag(speakM.conf, speakM.need) : ''}
+        ${detail}
         ${help ? `<span class="help-line">${esc(help)}</span>` : ''}</div></div>
       <div class="row center">${listenBtns}</div>
       <div class="row center">
@@ -549,17 +527,6 @@ function speakZone(set, w) {
       ${!showPic || speakM.revealed ? `<button class="btn ghost" data-action="speak-hear">${icon('speaker')} Vorher anhören</button>` : ''}
       <button class="btn ghost" data-action="speak-skip">Überspringen ${icon('right')}</button>
     </div>`;
-}
-
-/** Punkte-Balken mit Markierung der Mindestpunktzahl */
-function scoreBar(score, min) {
-  return `<span class="score-bar" role="img" aria-label="${score} von 100 Punkten"><span class="fill ${score >= min ? 'ok' : 'low'}" style="width:${Math.max(3, score)}%"></span><span class="mark" style="left:${min}%"></span></span>`;
-}
-
-/** Kleine Anzeige, wie sicher der Browser war (hilft beim Einstellen der Mindest-Sicherheit) */
-function confTag(conf, need = 0) {
-  if (!(conf > 0)) return '';
-  return `<span class="conf-tag">Sicherheit ${Math.round(conf * 100)} %${need ? ` · nötig ${Math.round(need * 100)} %` : ''}</span>`;
 }
 
 function updateSpeakZone() {
@@ -580,17 +547,11 @@ async function doListen() {
   const set = currentSet();
   const w = speakWord(set);
   if (!w) return;
-  if (speakM.state === 'listening' || speakM.state === 'starting') {
-    if (speakM.usingAzure) return; // Azure hört von selbst auf, sobald das Wort gesagt ist
-    stopListening(); return;
-  }
+  if (speakM.state === 'listening' || speakM.state === 'starting') { stopListening(); return; }
   stopSpeaking();
   clearTimeout(speakM.timer);
   speakM.state = 'starting';
   speakM.live = '';
-  speakM.azure = null;
-  speakM.usingAzure = azureReady() && !speakM.noAzure;
-  if (speakM.usingAzure) { await doListenAzure(set, w); return; }
   speakM.peak = null;
   speakM.meter = false;
   updateSpeakZone();
@@ -627,10 +588,8 @@ async function doListen() {
     speakM.attempts++;
     if (!alts.length) speakM.silentTries = (speakM.silentTries || 0) + 1; else speakM.silentTries = 0;
     const res = speechMatch(alts, w, set.lang);
-    speakM.heard = res.heard || (db.settings.speechLevel === 'loose' ? alts[0] : '') || '';
+    speakM.heard = res.heard || '';
     speakM.note = res.note || '';
-    speakM.conf = res.conf || 0;
-    speakM.need = res.need || 0;
     if (res.ok) {
       markSpeakOk(w);
     } else {
@@ -660,52 +619,7 @@ function markSpeakOk(w) {
   if (!speakM.results.has(w.id)) speakM.results.set(w.id, speakM.attempts === 1 && !speakM.revealed ? 'ok' : 'retry');
   sfx.good();
   revealSpeakWord();
-  speakM.timer = setTimeout(() => { if (ui.view === 'speak' && speakM.state === 'ok') nextSpeak(); }, speakM.azure ? 2600 : 1800);
-}
-
-/* Genaue Prüfung mit Microsoft Azure: Laut für Laut, 0–100 Punkte */
-async function doListenAzure(set, w) {
-  speakM.meter = false;
-  speakM.peak = null;
-  updateSpeakZone(); // alte Rückmeldung ausblenden, „Mikrofon wird eingeschaltet …“ zeigen
-  if (meterDuringListen()) {
-    const stream = await Promise.race([
-      startMeter((lv) => { const b = $('#mic-level'); if (b) b.style.setProperty('--lv', lv.toFixed(3)); }, db.settings.micId).catch(() => null),
-      sleep(2500).then(() => null),
-    ]);
-    if (stream && micMeter.stream === stream) { speakM.meter = true; updateSpeakZone(); }
-  }
-  try {
-    const res = await azureAssess(w, set.lang, {
-      onStart: () => { if (speakM.state === 'starting' && speakWord(set) === w) { speakM.state = 'listening'; updateSpeakZone(); } },
-    });
-    if (speakM.meter) speakM.peak = micMeter.peak;
-    stopMeter();
-    if (ui.view !== 'speak' || speakWord(set) !== w) return;
-    speakM.attempts++;
-    const v = azureVerdict(res);
-    speakM.azure = { res, v };
-    speakM.heard = String(res.text || '').replace(/[.!?]+$/, '');
-    speakM.note = '';
-    speakM.conf = 0;
-    speakM.silentTries = 0;
-    if (v.ok) markSpeakOk(w);
-    else { speakM.state = 'bad'; sfx.bad(); }
-  } catch (err) {
-    if (speakM.meter) speakM.peak = micMeter.peak;
-    stopMeter();
-    if (ui.view !== 'speak' || speakWord(set) !== w) return;
-    if (err === 'no-speech') {
-      speakM.attempts++; speakM.heard = ''; speakM.state = 'bad';
-      speakM.silentTries = (speakM.silentTries || 0) + 1;
-    } else {
-      speakM.state = 'error';
-      speakM.error = String(err);
-      sfx.bad();
-    }
-  }
-  speakM.usingAzure = false;
-  updateSpeakZone();
+  speakM.timer = setTimeout(() => { if (ui.view === 'speak' && speakM.state === 'ok') nextSpeak(); }, 1800);
 }
 
 function nextSpeak() {

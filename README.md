@@ -4,7 +4,7 @@ Ein Vokabelspiel für Englisch und Französisch. Vokabeln einfügen, und daraus 
 
 1. **Lernkarten** zum Umdrehen, mit Bild. Vorne steht wahlweise das Bild, Bild + Wort, das englische/französische Wort oder das deutsche Wort. Als Stapel („Gewusst“ / „Nochmal“) oder alle Karten auf einmal.
 2. **Zuordnen**: Bild ↔ Fremdwort oder Fremdwort ↔ Deutsch. Antippen oder eine Linie ziehen.
-3. **Aussprechen**: Wort oder Bild wird gezeigt, das Kind spricht ins Mikrofon. Ist es richtig, geht es weiter. Wenn nicht, kann es sich die richtige Aussprache anhören (auch langsam) und es nochmal versuchen. Wie streng bewertet wird, stellst du in den Einstellungen ein: **Mittel** (Standard – das Wort muss stimmen, „Brad“ oder „bird“ statt „bread“ ist falsch; bei langen Wörtern ist ein kleiner Unterschied ok), **Streng** (nur genau das Wort, und der Browser muss sich sicher sein) oder **Locker** (ähnlich klingende Wörter zählen auch).
+3. **Aussprechen**: Wort oder Bild wird gezeigt, das Kind spricht ins Mikrofon. Ist es richtig, geht es weiter. Wenn nicht, kann es sich die richtige Aussprache anhören (auch langsam) und es nochmal versuchen. Es zählt nur, was die Spracherkennung am wahrscheinlichsten verstanden hat, und das muss das Wort sein („Brad“ oder „bird“ statt „bread“ ist falsch). Die Mehrzahl ist ok, bei langen Wörtern darf ein Laut abweichen. Die Spracherkennung des Browsers kann Aussprache nicht Laut für Laut bewerten – ein deutsch ausgesprochenes Wort kann deshalb manchmal trotzdem als richtig gelten.
 4. **Test**: Bild → schreiben, Deutsch → schreiben, Hören → schreiben (Diktat) und Bedeutung wählen. Fast richtige Antworten (Akzent vergessen, Artikel fehlt, ein Tippfehler) zählen einen halben Punkt. Am Ende gibt es eine Auswertung und man kann nur die Fehler wiederholen.
 
 ## Vokabeln einfügen
@@ -68,20 +68,6 @@ Alles wird nur im Browser gespeichert (localStorage). Es gibt keinen Server und 
 
 Man kann `index.html` auch einfach per Doppelklick öffnen. Für Spracherkennung und Teilen-Links ist die Online-Version aber besser.
 
-## Genaue Aussprache-Prüfung (Microsoft Azure, optional)
-
-Die Spracherkennung des Browsers will Wörter *verstehen*, auch mit Akzent. Deshalb lässt sie manchmal durchgehen, wenn ein Wort so ausgesprochen wird, wie es geschrieben ist. Genauer ist Microsofts **Pronunciation Assessment**: Es vergleicht das Gesprochene Laut für Laut mit dem erwarteten Wort und vergibt 0–100 Punkte (ähnlich wie Sprach-Apps).
-
-So richtest du es ein (*Einstellungen → Genaue Aussprache-Prüfung*; dort steht auch eine Schritt-für-Schritt-Anleitung):
-
-1. Im [Azure-Portal](https://portal.azure.com) einen **Speech-Dienst** im kostenlosen Tarif **F0** anlegen (Region z. B. *Germany West Central*).
-2. **Schlüssel 1** kopieren, in Vokabelwelt einfügen, Region wählen, **Testen**, dann „Genaue Prüfung einschalten“.
-3. Mit der **Mindestpunktzahl** (Standard 70) stellst du ein, wie streng bewertet wird.
-
-Damit es auch auf den Geräten der Kinder funktioniert, kann der Schlüssel optional im Teilen-Link mitgegeben werden. Dann kann ihn jeder mit dem Link sehen – deshalb nur den kostenlosen Tarif verwenden. Die Sprachaufnahmen werden zur Bewertung an Microsoft geschickt (bei der Spracherkennung von Chrome gehen sie an Google). Für den Schulgebrauch am besten mit der/dem Datenschutzbeauftragten absprechen.
-
-Die genaue Prüfung funktioniert auch in Firefox (sie braucht nur das Mikrofon). Ohne Schlüssel nutzt Vokabelwelt wie bisher die Spracherkennung des Browsers.
-
 ## Browser
 
 - **Spracherkennung** gibt es in Chrome, Edge und Safari (auch auf iPad/iPhone). Firefox kann das nicht; dort bewerten sich die Kinder selbst (anhören und vergleichen).
@@ -97,7 +83,6 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt:
 | `css/styles.css` | Gestaltung |
 | `js/picture-data.js` | Bildwörterbuch (Emoji/Farbe ↔ Englisch/Französisch/Deutsch) |
 | `js/core.js` | Parser, Antwortprüfung, Speicher, Bildsuche, Vorlesen, Spracherkennung |
-| `js/azure.js` | Genaue Aussprache-Prüfung mit Microsoft Azure (optional) |
 | `js/ui.js` | Startseite, Übersicht, Dialoge |
 | `js/modes.js` | Lernkarten, Zuordnen, Aussprechen, Test |
 | `js/main.js` | Aktionen und Start |

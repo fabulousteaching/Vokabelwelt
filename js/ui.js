@@ -917,18 +917,6 @@ function openSettings() {
     <div class="settings">
       <label class="switch"><input type="checkbox" id="set-sound" ${s.sound ? 'checked' : ''}><span>Klänge bei richtig und falsch</span></label>
       <label class="switch"><input type="checkbox" id="set-autospeak" ${s.autoSpeak ? 'checked' : ''}><span>Wörter automatisch vorlesen</span></label>
-      <div class="field"><span class="label">Aussprache bewerten</span>
-        <div class="seg" role="group" aria-label="Wie streng die Aussprache bewertet wird">
-          ${Object.entries(SPEECH_LEVELS).map(([k, v]) => `<button type="button" class="seg-btn" data-action="set-speech-level" data-level="${k}" aria-pressed="${(s.speechLevel || 'medium') === k}">${v.label}</button>`).join('')}
-        </div>
-        <p class="muted small" id="speech-level-hint">${SPEECH_LEVELS[s.speechLevel || 'medium'].hint}</p>
-      </div>
-      <div class="field">
-        <label for="set-minconf"><span class="label">Mindest-Sicherheit: <span id="minconf-val">${Math.round((s.minConf || 0) * 100)} %</span></span></label>
-        <input type="range" id="set-minconf" min="0" max="0.9" step="0.05" value="${s.minConf || 0}">
-        <p class="muted small">Wie sicher der Browser sein muss, damit ein Wort zählt. Wer das Wort so ausspricht, wie es geschrieben wird, macht ihn meist unsicherer. 0 % = aus. Am besten so einstellen:</p>
-        ${canListen() ? `<div class="calib"><button type="button" class="btn small secondary" data-action="calib-start">${icon('mic')} Mit zwei Probe-Aufnahmen einstellen</button><div id="calib-out" aria-live="polite"></div></div>` : ''}
-      </div>
       <div class="field"><span class="label">Englische Aussprache</span>
         <div class="seg" role="group" aria-label="Englische Aussprache">
           <button type="button" class="seg-btn" data-action="set-accent" data-accent="gb" aria-pressed="${s.accent !== 'us'}">Britisch</button>
@@ -942,7 +930,6 @@ function openSettings() {
       <div class="row"><button type="button" class="btn small secondary" data-action="voice-test" data-lang="en">${icon('speaker')} Englisch testen</button>
         <button type="button" class="btn small secondary" data-action="voice-test" data-lang="fr">${icon('speaker')} Französisch testen</button></div>`
         : '<p class="warn">Dieser Browser kann nicht vorlesen.</p>'}
-      ${azureSettingsHTML(s)}
       <div class="field"><span class="label">Mikrofon und Spracherkennung</span>
         ${canListen()
           ? `<label class="field" for="mic-device"><span class="small muted">Mikrofon</span>
@@ -958,121 +945,15 @@ function openSettings() {
     </div>`, { label: 'Einstellungen' });
   const m = ui.modal.el;
   fillMicSelect();
-  ui.calib = null;
-  m.addEventListener('input', (e) => {
-    if (e.target.id?.startsWith('az-')) { readAzureSettings(); return; }
-    if (e.target.id !== 'set-minconf') return;
-    s.minConf = parseFloat(e.target.value);
-    const v = $('#minconf-val');
-    if (v) v.textContent = `${Math.round(s.minConf * 100)} %`;
-    saveDB();
-  });
   m.addEventListener('change', (e) => {
     const t = e.target;
     if (t.id === 'mic-device') { s.micId = t.value; saveDB(); }
     if (t.id === 'set-sound') s.sound = t.checked;
     if (t.id === 'set-autospeak') s.autoSpeak = t.checked;
     if (t.id === 'set-rate') s.rate = parseFloat(t.value);
-    if (t.id === 'set-minconf') s.minConf = parseFloat(t.value);
-    if (t.id?.startsWith('az-')) readAzureSettings();
     if (t.id?.startsWith('voice-')) s.voice = { ...(s.voice || {}), [t.dataset.lang]: t.value };
     saveDB();
   });
-}
-
-/* ---------- Genaue Aussprache-Prüfung (Microsoft Azure) ---------- */
-function azureSettingsHTML(s) {
-  const a = { ...DEFAULT_SETTINGS.azure, ...(s.azure || {}) };
-  return `<div class="field azure-box">
-    <span class="label">Genaue Aussprache-Prüfung (Microsoft Azure)</span>
-    <p class="muted small">Prüft Laut für Laut wie Sprach-Apps (0–100 Punkte). Erkennt auch, wenn ein Wort so ausgesprochen wird, wie es geschrieben ist. Braucht einen kostenlosen Schlüssel von Microsoft.</p>
-    <label class="switch"><input type="checkbox" id="az-on" ${a.on ? 'checked' : ''}><span>Genaue Prüfung einschalten</span></label>
-    <div class="az-fields">
-      <label class="field" for="az-key"><span class="small muted">Schlüssel („Key 1“)</span>
-        <input id="az-key" type="password" autocomplete="off" spellcheck="false" value="${esc(a.key)}" placeholder="Schlüssel hier einfügen"></label>
-      <label class="field" for="az-region"><span class="small muted">Region (wie beim Erstellen gewählt)</span>
-        <select id="az-region">${AZURE_REGIONS.map(([k, n]) => `<option value="${k}" ${a.region === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}
-          ${AZURE_REGIONS.some(([k]) => k === a.region) ? '' : `<option value="${esc(a.region)}" selected>${esc(a.region)}</option>`}</select></label>
-      <label for="az-min"><span class="small muted">Mindestpunktzahl: <strong id="az-min-val">${a.minScore}</strong> von 100</span></label>
-      <input type="range" id="az-min" min="40" max="95" step="5" value="${a.minScore}">
-      <div class="row"><button type="button" class="btn small secondary" data-action="az-test">${icon('mic')} Testen: „hello“ sagen</button></div>
-      <p class="small" id="az-test-out" aria-live="polite"></p>
-      <label class="switch small"><input type="checkbox" id="az-share" ${a.share ? 'checked' : ''}><span>Schlüssel im Teilen-Link mitgeben (damit es auch auf den Geräten der Kinder geht)</span></label>
-      <p class="muted small">Achtung: Wer den Link hat, kann den Schlüssel sehen und dein Kontingent verbrauchen. Nutze dafür nur den kostenlosen Tarif „F0“. Die Sprachaufnahmen werden zur Bewertung an Microsoft geschickt.</p>
-    </div>
-    <details class="az-help"><summary>So bekommst du einen Schlüssel (ca. 10 Minuten)</summary>
-      <ol class="small">
-        <li><a href="https://portal.azure.com" target="_blank" rel="noopener">portal.azure.com</a> öffnen und mit einem Microsoft-Konto anmelden. Ohne Azure-Konto: kostenloses Konto anlegen. Microsoft fragt dabei meist nach einer Kreditkarte zur Bestätigung.</li>
-        <li>Oben in die Suche <strong>„Speech“</strong> eingeben und den <strong>Speech-Dienst</strong> (Azure AI Speech) öffnen → <strong>Erstellen</strong>.</li>
-        <li>Region <strong>Germany West Central</strong> (oder West Europe), Tarif <strong>Free F0</strong>, beliebiger Name → Überprüfen und erstellen.</li>
-        <li>Wenn fertig: <strong>Zur Ressource</strong> → links <strong>„Schlüssel und Endpunkt“</strong> → <strong>Schlüssel 1</strong> kopieren.</li>
-        <li>Hier einfügen, dieselbe Region wählen, „Genaue Prüfung einschalten“ und testen.</li>
-      </ol>
-      <p class="muted small">Die Bezeichnungen im Azure-Portal können sich leicht unterscheiden.</p>
-    </details>
-  </div>`;
-}
-
-function readAzureSettings() {
-  const s = db.settings;
-  const a = { ...DEFAULT_SETTINGS.azure, ...(s.azure || {}) };
-  const on = $('#az-on'), key = $('#az-key'), region = $('#az-region'), min = $('#az-min'), share = $('#az-share');
-  if (on) a.on = on.checked;
-  if (key) a.key = key.value.trim();
-  if (region) a.region = region.value;
-  if (min) a.minScore = parseInt(min.value, 10) || 70;
-  if (share) a.share = share.checked;
-  s.azure = a;
-  const mv = $('#az-min-val');
-  if (mv) mv.textContent = a.minScore;
-  saveDB();
-}
-
-/* ---------- Mindest-Sicherheit mit zwei Probe-Aufnahmen einstellen ---------- */
-function calibDefaults() {
-  const set = currentSet();
-  const w = set?.words.find((x) => x.foreign && core(x.foreign, set.lang).length >= 3);
-  return { word: w ? core(w.foreign, set.lang) : 'bread', lang: set?.lang || 'en' };
-}
-
-function renderCalib(msg = '') {
-  const box = $('#calib-out');
-  if (!box) return;
-  const c = ui.calib;
-  if (!c) { box.innerHTML = ''; return; }
-  const L = LANGS[c.lang].name;
-  const rec = `<button type="button" class="btn small primary" data-action="calib-record" ${c.busy ? 'disabled' : ''}>${icon('mic')} Aufnehmen</button>`;
-  if (c.step === 1) {
-    box.innerHTML = `<div class="calib-step">
-      <label class="field" for="calib-word"><span class="small muted">Probewort (${L})</span><input id="calib-word" type="text" value="${esc(c.word)}" lang="${c.lang}"></label>
-      <p><strong>Schritt 1 von 2:</strong> Sag das Wort <strong>richtig</strong>. ${sayBtn(c.word, c.lang, 'Vorher anhören', 'small')}</p>
-      <div class="row">${rec}</div><p class="muted small">${esc(msg)}</p></div>`;
-  } else if (c.step === 2) {
-    box.innerHTML = `<div class="calib-step">
-      <p><strong>Schritt 2 von 2:</strong> Sag „${esc(c.word)}“ jetzt absichtlich <strong>so, wie man es auf Deutsch lesen würde</strong>.</p>
-      <p class="muted small">Schritt 1: „${esc(c.r1.t || '–')}“${c.r1.conf ? `, Sicherheit ${Math.round(c.r1.conf * 100)} %` : ''}</p>
-      <div class="row">${rec}</div><p class="muted small">${esc(msg)}</p></div>`;
-  } else {
-    box.innerHTML = `<div class="calib-step ${c.ok ? 'done' : ''}"><p>${esc(c.result)}</p>
-      <div class="row"><button type="button" class="btn small ghost" data-action="calib-start">Nochmal mit einem anderen Wort</button></div></div>`;
-  }
-}
-
-function calibEvaluate(c) {
-  const p = (x) => Math.round(x * 100);
-  const { r1, r2 } = c;
-  if (!r1.match) return `Die richtige Aussprache wurde nicht als „${c.word}“ erkannt (verstanden: „${r1.t || '–'}“). Versuch es noch einmal.`;
-  if (!r2.match) return `Gut: „Wie geschrieben“ wurde als „${r2.t || '–'}“ verstanden – das zählt bei diesem Wort sowieso nicht. Probier ein Wort, bei dem die falsche Aussprache durchgerutscht ist.`;
-  if (!(r1.conf > 0) || !(r2.conf > 0)) return 'Dein Browser meldet keine Sicherheit. Damit lässt sich die Aussprache „wie geschrieben“ leider nicht herausfiltern.';
-  if (r1.conf - r2.conf < 0.05) return `Dein Browser ist bei beiden gleich sicher (richtig ${p(r1.conf)} %, wie geschrieben ${p(r2.conf)} %). Bei diesem Wort hört er den Unterschied nicht – probier ein anderes Wort.`;
-  const th = Math.min(0.9, Math.round(((r1.conf + r2.conf) / 2) * 20) / 20);
-  db.settings.minConf = th;
-  saveDB();
-  const slider = $('#set-minconf'), val = $('#minconf-val');
-  if (slider) slider.value = String(th);
-  if (val) val.textContent = `${p(th)} %`;
-  c.ok = true;
-  return `Eingestellt: Ein Wort zählt ab ${p(th)} % Sicherheit. (Richtig gesprochen: ${p(r1.conf)} %, wie geschrieben: ${p(r2.conf)} %.) Teste es mit ein paar Wörtern; bei Bedarf den Regler etwas verschieben.`;
 }
 
 async function fillMicSelect() {

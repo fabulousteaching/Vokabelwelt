@@ -146,12 +146,6 @@ const actions = {
   },
 
   /* Einstellungen */
-  'set-speech-level': (el) => {
-    db.settings.speechLevel = el.dataset.level; db.settings.speechLevelChosen = true; saveDB();
-    $$('[data-action="set-speech-level"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.level === db.settings.speechLevel)));
-    const h = $('#speech-level-hint');
-    if (h) h.textContent = SPEECH_LEVELS[db.settings.speechLevel].hint;
-  },
   'set-accent': (el) => {
     db.settings.accent = el.dataset.accent; saveDB();
     $$('[data-action="set-accent"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.accent === db.settings.accent)));
@@ -211,56 +205,6 @@ const actions = {
     speakM.state = 'idle';
     updateSpeakZone();
   },
-  'az-test': async (el) => {
-    const out = $('#az-test-out');
-    readAzureSettings();
-    const a = db.settings.azure;
-    if (!a.key) { out.textContent = 'Bitte zuerst den Schlüssel einfügen.'; return; }
-    el.disabled = true;
-    out.textContent = 'Verbinde mit Microsoft …';
-    try {
-      const res = await azureAssess({ foreign: 'hello', german: '' }, 'en', { onStart: () => { out.textContent = 'Ich höre zu – sag „hello“!'; } });
-      const v = azureVerdict(res);
-      out.textContent = `Es klappt! Verstanden: „${res.text}“ – ${v.acc} von 100 Punkten.${a.on ? '' : ' Schalte jetzt „Genaue Prüfung einschalten“ ein.'}`;
-    } catch (err) {
-      out.textContent = err === 'no-speech' ? 'Verbindung klappt, aber ich habe nichts gehört. Sag „hello“ gleich nach dem Tippen.'
-        : `${String(err).startsWith('azure') ? azureErrorText(err) : micErrorText(err, 'en')} (Fehlercode: ${err})`;
-    }
-    el.disabled = false;
-  },
-  'speak-no-azure': () => {
-    speakM.noAzure = true;
-    speakM.state = 'idle';
-    updateSpeakZone();
-    toast('Für diese Runde ohne genaue Prüfung.');
-  },
-  'calib-start': () => {
-    const d = calibDefaults();
-    ui.calib = { step: 1, word: d.word, lang: d.lang, r1: null, r2: null, busy: false, ok: false };
-    renderCalib();
-  },
-  'calib-record': async () => {
-    const c = ui.calib;
-    if (!c || c.busy) return;
-    if (c.step === 1) {
-      const inp = $('#calib-word');
-      if (inp && inp.value.trim()) c.word = inp.value.trim();
-    }
-    c.busy = true;
-    renderCalib('Mikrofon wird eingeschaltet …');
-    try {
-      const alts = await listenOnce(c.lang, { onStart: () => renderCalib('Ich höre zu – sprich jetzt!') });
-      const best = alts.best || { t: alts[0] || '', conf: 0, final: false };
-      const m = speechMatch(alts, { foreign: c.word, german: '' }, c.lang, 'medium', { ignoreConf: true });
-      const r = { t: best.t || '', conf: m.conf || 0, match: m.ok };
-      c.busy = false;
-      if (c.step === 1) { c.r1 = r; c.step = 2; renderCalib(); }
-      else { c.r2 = r; c.step = 3; c.result = calibEvaluate(c); renderCalib(); }
-    } catch (err) {
-      c.busy = false;
-      renderCalib(err === 'no-speech' ? 'Ich habe nichts gehört. Tippe auf „Aufnehmen“ und sprich gleich danach.' : `${micErrorText(err, c.lang)} (Fehlercode: ${err})`);
-    }
-  },
   'mic-test': async (el) => {
     const out = $('#mic-test-out');
     if (!out) return;
@@ -290,8 +234,7 @@ const actions = {
         onInterim: (t) => { out.textContent = `Ich höre: „${t}“`; },
       });
       if (same && stream) peak = micMeter.peak;
-      const c = alts.best && alts.best.final && alts.best.conf > 0 ? ` (Sicherheit ${Math.round(alts.best.conf * 100)} %)` : '';
-      out.textContent = alts.length ? `Es klappt! Erkannt: „${alts.best?.t || alts[0]}“${c}` : `Ich habe nichts erkannt. ${silenceHelp(peak) || 'Sprich lauter oder näher am Mikrofon.'}`;
+      out.textContent = alts.length ? `Es klappt! Erkannt: „${alts.best?.t || alts[0]}“` : `Ich habe nichts erkannt. ${silenceHelp(peak) || 'Sprich lauter oder näher am Mikrofon.'}`;
     } catch (err) {
       if (same && stream) peak = micMeter.peak;
       out.textContent = err === 'no-speech'
@@ -405,10 +348,6 @@ async function importFromHash() {
     if (!data.rows.length) throw new Error('leer');
     const set = newSet({ name: data.name, lang: data.lang, rows: data.rows, picStyle: data.picStyle });
     set.shareId = share;
-    if (data.az && !azureReady()) {
-      db.settings.azure = { ...DEFAULT_SETTINGS.azure, on: true, key: data.az.key, region: data.az.region, minScore: data.az.minScore };
-      setTimeout(() => toast('Die genaue Aussprache-Prüfung ist eingeschaltet.'), 1200);
-    }
     saveDB();
     openSet(set.id);
     toast(`Neue Vokabelportion „${set.name}“ geladen.`);

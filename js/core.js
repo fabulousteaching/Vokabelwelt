@@ -179,72 +179,37 @@ function normSpeech(s, lang, keepArticle = false) {
   return t;
 }
 
-/* Wie streng die Aussprache bewertet wird:
-   strict – nur der erste (wahrscheinlichste) erkannte Text zählt, und er muss genau das Wort sein.
-            Meldet der Browser, dass er unsicher war, zählt es auch nicht.
-   medium – wie streng, aber bei langen Wörtern darf ein Buchstabe abweichen (z. B. Plural-s).
-   loose  – ähnlich klingende Wörter und alle Vorschläge des Browsers zählen (frühere Einstellung). */
-const SPEECH_LEVELS = {
-  strict: { label: 'Streng', hint: 'Nur genau das Wort zählt, und der Browser muss sich sicher sein. Wird oft abgelehnt.' },
-  medium: { label: 'Mittel', hint: 'Empfohlen: Es zählt nur genau das Wort („Brad“ statt „bread“ ist falsch). Nur die Mehrzahl und bei langen Wörtern ein Laut dürfen abweichen.' },
-  loose: { label: 'Locker', hint: 'Ähnlich klingende Wörter zählen auch.' },
-};
-const STRICT_MIN_CONFIDENCE = 0.5;
-
 const frArticle = (normWithArticle) => (normWithArticle.match(/^(de la|de l|le|la|les|l|un|une|des|du)\s/) || [])[1] || '';
 
-/** Vergleicht das Erkannte mit dem Zielwort. alternatives.best = { t, conf, final } (von listenOnce) */
-function speechMatch(alternatives, word, lang, level = db.settings.speechLevel || 'medium', { ignoreConf = false } = {}) {
+/**
+ * Vergleicht das Erkannte mit dem Zielwort – einfach und ausgewogen:
+ * Es zählt nur der wahrscheinlichste erkannte Text, und er muss das Wort sein
+ * („Brad“ oder „bird“ statt „bread“ ist falsch). Die Mehrzahl ist ok, bei langen
+ * Wörtern (ab 8 Buchstaben) darf ein Buchstabe abweichen. Gleich klingende Wörter zählen.
+ * alternatives.best = { t, conf, final } kommt von listenOnce.
+ */
+function speechMatch(alternatives, word, lang) {
   const variants = answerVariants(word.foreign);
   const targets = variants.map((v) => normSpeech(v, lang)).filter(Boolean);
   const best = alternatives.best || { t: alternatives[0] || '', conf: 0, final: false };
-
-  if (level === 'loose') {
-    let res = { ok: false, score: 0, heard: alternatives[0] || '' };
-    for (const alt of alternatives) {
-      const h = normSpeech(alt, lang);
-      if (!h) continue;
-      for (const t of targets) {
-        if (h === t || (` ${h} `).includes(` ${t} `)) return { ok: true, score: 1, heard: alt };
-        const hw = h.split(' '), n = t.split(' ').length;
-        let sc = similarity(h, t);
-        for (let i = 0; i + n <= hw.length; i++) sc = Math.max(sc, similarity(hw.slice(i, i + n).join(' '), t));
-        const need = t.length <= 3 ? 1 : t.length <= 5 ? 0.8 : 0.75;
-        if (sc >= need) return { ok: true, score: sc, heard: alt };
-        if (sc > res.score) res = { ok: false, score: sc, heard: alt };
-      }
-    }
-    return res;
-  }
-
-  // streng / mittel: nur der wahrscheinlichste Text zählt
   const heard = best.t || '';
-  const conf = best.final && best.conf > 0 ? best.conf : 0;
   const h = normSpeech(heard, lang);
-  if (!h) return { ok: false, score: 0, heard: '', conf };
+  if (!h) return { ok: false, score: 0, heard: '' };
   const squash = (x) => x.replace(/ /g, '');
-  // „Mittel“: Plural-Endung ist ok; nur bei langen Wörtern (ab 8 Buchstaben) darf ein Buchstabe abweichen.
-  // So bleibt „butter“ ≠ „better“ und „bread“ ≠ „Brad“.
   const near = (t) => {
     const a = squash(h), b = squash(t);
-    return a === b + 's' || a === b + 'es' || (b.length >= 8 && lev(a, b) <= 1);
+    return a === b || a === b + 's' || a === b + 'es' || (b.length >= 8 && lev(a, b) <= 1);
   };
-  const ok = targets.some((t) => h === t || squash(h) === squash(t)
-    || (level === 'medium' && near(t)));
+  const ok = targets.some((t) => h === t || near(t));
   const score = Math.max(0, ...targets.map((t) => similarity(h, t)));
-  if (!ok) return { ok: false, score, heard, conf };
-
+  if (!ok) return { ok: false, score, heard };
   // Französisch: Wird ein Artikel gesagt, muss es der richtige sein (le ≠ la).
   if (lang === 'fr') {
     const hArt = frArticle(normSpeech(heard, lang, true));
     const tArts = variants.map((v) => frArticle(normSpeech(v, lang, true))).filter(Boolean);
-    if (hArt && tArts.length && !tArts.includes(hArt)) return { ok: false, score, heard, conf, note: 'article' };
+    if (hArt && tArts.length && !tArts.includes(hArt)) return { ok: false, score, heard, note: 'article' };
   }
-  // War sich der Browser nicht sicher genug? (Aussprache „wie geschrieben“ macht ihn oft unsicherer.)
-  // Die Schwelle stellt man in den Einstellungen ein – am besten mit zwei Probe-Aufnahmen.
-  const need = ignoreConf ? 0 : level === 'strict' ? Math.max(STRICT_MIN_CONFIDENCE, db.settings.minConf || 0) : (db.settings.minConf || 0);
-  if (need > 0 && conf > 0 && conf < need) return { ok: false, score, heard, conf, need, note: 'unsure' };
-  return { ok: true, score: 1, heard, conf };
+  return { ok: true, score: 1, heard };
 }
 
 /** Text, der vorgelesen wird (Abkürzungen ausgeschrieben) */
@@ -330,8 +295,7 @@ function parseVocab(text, opts = {}) {
 
 /* ---------------- Speicher ---------------- */
 const STORE_KEY = 'vokabelwelt.v1';
-const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '', speechLevel: 'medium', minConf: 0,
-  azure: { on: false, key: '', region: 'germanywestcentral', minScore: 70, share: false } };
+const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '' };
 let db = { sets: [], settings: structuredClone(DEFAULT_SETTINGS) };
 
 function loadDB() {
@@ -340,7 +304,7 @@ function loadDB() {
     if (!raw) return;
     const d = JSON.parse(raw);
     db = { ...db, ...d, settings: { ...structuredClone(DEFAULT_SETTINGS), ...(d.settings || {}) } };
-    if (!db.settings.speechLevelChosen) db.settings.speechLevel = 'medium';
+    ['speechLevel', 'speechLevelChosen', 'minConf', 'azure'].forEach((k) => delete db.settings[k]); // alte Einstellungen aufräumen
     db.sets = (db.sets || []).filter((s) => s && Array.isArray(s.words));
     db.sets.forEach((s) => {
       s.words.forEach((w) => {
@@ -966,7 +930,6 @@ function listenOnce(lang, { onStart, onInterim, timeoutMs = 8000, track = null }
   });
 }
 function stopListening(abort = false) {
-  if (abort && typeof stopAzure === 'function') stopAzure();
   const r = listening.rec;
   if (!r) return;
   try { abort ? r.abort() : r.stop(); } catch { /* */ }
@@ -1072,10 +1035,8 @@ function b64urlDecode(str) {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 async function encodeShare(set) {
-  const az = db.settings.azure || {};
   const data = {
     v: 1, n: set.name, l: set.lang, s: set.picStyle,
-    ...(az.share && az.key && az.region ? { az: [az.key, az.region, az.minScore ?? 70] } : {}),
     w: set.words.map((w) => {
       const row = [w.foreign, w.german];
       const p = w.pic;
@@ -1103,7 +1064,6 @@ async function decodeShare(code) {
   } else json = new TextDecoder().decode(bytes);
   const d = JSON.parse(json);
   return {
-    az: Array.isArray(d.az) && d.az[0] && d.az[1] ? { key: String(d.az[0]), region: String(d.az[1]), minScore: Number(d.az[2]) || 70 } : null,
     name: String(d.n || 'Vokabeln'), lang: d.l === 'fr' ? 'fr' : 'en', picStyle: ['picto', 'clipart', 'photo', 'emoji'].includes(d.s) ? d.s : 'picto',
     rows: (d.w || []).map((r) => ({
       foreign: String(r[0] || ''), german: String(r[1] || ''),

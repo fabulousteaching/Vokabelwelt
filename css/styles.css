@@ -481,29 +481,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); outline: 
 .mic-level { --lv: 0; width: min(240px, 80%); height: 10px; border-radius: 99px; background: var(--desk-deep); overflow: hidden; }
 .mic-level span { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--green); transform-origin: left; transform: scaleX(var(--lv)); transition: transform .06s linear; }
 .mic-level.big { width: 100%; height: 14px; }
-.score-bar { position: relative; display: block; width: min(260px, 100%); height: 10px; margin-top: .45rem; border-radius: 99px; background: rgba(0, 0, 0, .1); overflow: visible; }
-.score-bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; }
-.score-bar .fill.ok { background: var(--green); }
-.score-bar .fill.low { background: var(--red); }
-.score-bar .mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
-.phonemes { display: flex; flex-wrap: wrap; gap: 3px; margin-top: .5rem; }
-.ph { display: inline-grid; justify-items: center; min-width: 26px; padding: 2px 5px; border-radius: 7px; background: rgba(255, 255, 255, .6); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85rem; color: var(--ink); }
-.ph small { font-size: .62rem; color: var(--ink-3); }
-.ph.weak { background: var(--red); color: #fff; }
-.ph.weak small { color: #fff; }
-.ph-gap { width: 10px; }
-.az-note { display: block; font-weight: 400; font-size: .8rem; color: var(--ink-3); }
-.azure-box { padding: 1rem; border-radius: 16px; background: var(--desk); display: grid; gap: .6rem; }
-.az-fields { display: grid; gap: .6rem; }
-.az-help summary { cursor: pointer; font-weight: 700; color: var(--blue-ink); }
-.az-help ol { margin: .5rem 0 0; padding-left: 1.2rem; display: grid; gap: .3rem; }
-.switch.small { font-size: .9rem; }
-.conf-tag { display: block; margin-top: .3rem; font-size: .8rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.calib { display: grid; gap: .6rem; }
-.calib-step { display: grid; gap: .5rem; padding: .8rem 1rem; border-radius: 14px; background: var(--desk); }
-.calib-step.done { background: var(--green-wash); }
-.calib-step p { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
-.say.small { width: 34px; height: 34px; }
 .help-line { display: block; margin-top: .4rem; font-size: .92rem; color: var(--ink-2); }
 .heard-live { min-height: 1.6em; font-size: 1.25rem; font-weight: 700; color: var(--blue-ink); }
 .err-code { display: block; margin-top: .3rem; font-size: .8rem; color: var(--ink-3); }
