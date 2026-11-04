@@ -923,6 +923,12 @@ function openSettings() {
         </div>
         <p class="muted small" id="speech-level-hint">${SPEECH_LEVELS[s.speechLevel || 'medium'].hint}</p>
       </div>
+      <div class="field">
+        <label for="set-minconf"><span class="label">Mindest-Sicherheit: <span id="minconf-val">${Math.round((s.minConf || 0) * 100)} %</span></span></label>
+        <input type="range" id="set-minconf" min="0" max="0.9" step="0.05" value="${s.minConf || 0}">
+        <p class="muted small">Wie sicher der Browser sein muss, damit ein Wort zählt. Wer das Wort so ausspricht, wie es geschrieben wird, macht ihn meist unsicherer. 0 % = aus. Am besten so einstellen:</p>
+        ${canListen() ? `<div class="calib"><button type="button" class="btn small secondary" data-action="calib-start">${icon('mic')} Mit zwei Probe-Aufnahmen einstellen</button><div id="calib-out" aria-live="polite"></div></div>` : ''}
+      </div>
       <div class="field"><span class="label">Englische Aussprache</span>
         <div class="seg" role="group" aria-label="Englische Aussprache">
           <button type="button" class="seg-btn" data-action="set-accent" data-accent="gb" aria-pressed="${s.accent !== 'us'}">Britisch</button>
@@ -951,15 +957,71 @@ function openSettings() {
     </div>`, { label: 'Einstellungen' });
   const m = ui.modal.el;
   fillMicSelect();
+  ui.calib = null;
+  m.addEventListener('input', (e) => {
+    if (e.target.id !== 'set-minconf') return;
+    s.minConf = parseFloat(e.target.value);
+    const v = $('#minconf-val');
+    if (v) v.textContent = `${Math.round(s.minConf * 100)} %`;
+    saveDB();
+  });
   m.addEventListener('change', (e) => {
     const t = e.target;
     if (t.id === 'mic-device') { s.micId = t.value; saveDB(); }
     if (t.id === 'set-sound') s.sound = t.checked;
     if (t.id === 'set-autospeak') s.autoSpeak = t.checked;
     if (t.id === 'set-rate') s.rate = parseFloat(t.value);
+    if (t.id === 'set-minconf') s.minConf = parseFloat(t.value);
     if (t.id?.startsWith('voice-')) s.voice = { ...(s.voice || {}), [t.dataset.lang]: t.value };
     saveDB();
   });
+}
+
+/* ---------- Mindest-Sicherheit mit zwei Probe-Aufnahmen einstellen ---------- */
+function calibDefaults() {
+  const set = currentSet();
+  const w = set?.words.find((x) => x.foreign && core(x.foreign, set.lang).length >= 3);
+  return { word: w ? core(w.foreign, set.lang) : 'bread', lang: set?.lang || 'en' };
+}
+
+function renderCalib(msg = '') {
+  const box = $('#calib-out');
+  if (!box) return;
+  const c = ui.calib;
+  if (!c) { box.innerHTML = ''; return; }
+  const L = LANGS[c.lang].name;
+  const rec = `<button type="button" class="btn small primary" data-action="calib-record" ${c.busy ? 'disabled' : ''}>${icon('mic')} Aufnehmen</button>`;
+  if (c.step === 1) {
+    box.innerHTML = `<div class="calib-step">
+      <label class="field" for="calib-word"><span class="small muted">Probewort (${L})</span><input id="calib-word" type="text" value="${esc(c.word)}" lang="${c.lang}"></label>
+      <p><strong>Schritt 1 von 2:</strong> Sag das Wort <strong>richtig</strong>. ${sayBtn(c.word, c.lang, 'Vorher anhören', 'small')}</p>
+      <div class="row">${rec}</div><p class="muted small">${esc(msg)}</p></div>`;
+  } else if (c.step === 2) {
+    box.innerHTML = `<div class="calib-step">
+      <p><strong>Schritt 2 von 2:</strong> Sag „${esc(c.word)}“ jetzt absichtlich <strong>so, wie man es auf Deutsch lesen würde</strong>.</p>
+      <p class="muted small">Schritt 1: „${esc(c.r1.t || '–')}“${c.r1.conf ? `, Sicherheit ${Math.round(c.r1.conf * 100)} %` : ''}</p>
+      <div class="row">${rec}</div><p class="muted small">${esc(msg)}</p></div>`;
+  } else {
+    box.innerHTML = `<div class="calib-step ${c.ok ? 'done' : ''}"><p>${esc(c.result)}</p>
+      <div class="row"><button type="button" class="btn small ghost" data-action="calib-start">Nochmal mit einem anderen Wort</button></div></div>`;
+  }
+}
+
+function calibEvaluate(c) {
+  const p = (x) => Math.round(x * 100);
+  const { r1, r2 } = c;
+  if (!r1.match) return `Die richtige Aussprache wurde nicht als „${c.word}“ erkannt (verstanden: „${r1.t || '–'}“). Versuch es noch einmal.`;
+  if (!r2.match) return `Gut: „Wie geschrieben“ wurde als „${r2.t || '–'}“ verstanden – das zählt bei diesem Wort sowieso nicht. Probier ein Wort, bei dem die falsche Aussprache durchgerutscht ist.`;
+  if (!(r1.conf > 0) || !(r2.conf > 0)) return 'Dein Browser meldet keine Sicherheit. Damit lässt sich die Aussprache „wie geschrieben“ leider nicht herausfiltern.';
+  if (r1.conf - r2.conf < 0.05) return `Dein Browser ist bei beiden gleich sicher (richtig ${p(r1.conf)} %, wie geschrieben ${p(r2.conf)} %). Bei diesem Wort hört er den Unterschied nicht – probier ein anderes Wort.`;
+  const th = Math.min(0.9, Math.round(((r1.conf + r2.conf) / 2) * 20) / 20);
+  db.settings.minConf = th;
+  saveDB();
+  const slider = $('#set-minconf'), val = $('#minconf-val');
+  if (slider) slider.value = String(th);
+  if (val) val.textContent = `${p(th)} %`;
+  c.ok = true;
+  return `Eingestellt: Ein Wort zählt ab ${p(th)} % Sicherheit. (Richtig gesprochen: ${p(r1.conf)} %, wie geschrieben: ${p(r2.conf)} %.) Teste es mit ein paar Wörtern; bei Bedarf den Regler etwas verschieben.`;
 }
 
 async function fillMicSelect() {

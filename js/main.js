@@ -211,6 +211,33 @@ const actions = {
     speakM.state = 'idle';
     updateSpeakZone();
   },
+  'calib-start': () => {
+    const d = calibDefaults();
+    ui.calib = { step: 1, word: d.word, lang: d.lang, r1: null, r2: null, busy: false, ok: false };
+    renderCalib();
+  },
+  'calib-record': async () => {
+    const c = ui.calib;
+    if (!c || c.busy) return;
+    if (c.step === 1) {
+      const inp = $('#calib-word');
+      if (inp && inp.value.trim()) c.word = inp.value.trim();
+    }
+    c.busy = true;
+    renderCalib('Mikrofon wird eingeschaltet …');
+    try {
+      const alts = await listenOnce(c.lang, { onStart: () => renderCalib('Ich höre zu – sprich jetzt!') });
+      const best = alts.best || { t: alts[0] || '', conf: 0, final: false };
+      const m = speechMatch(alts, { foreign: c.word, german: '' }, c.lang, 'medium', { ignoreConf: true });
+      const r = { t: best.t || '', conf: m.conf || 0, match: m.ok };
+      c.busy = false;
+      if (c.step === 1) { c.r1 = r; c.step = 2; renderCalib(); }
+      else { c.r2 = r; c.step = 3; c.result = calibEvaluate(c); renderCalib(); }
+    } catch (err) {
+      c.busy = false;
+      renderCalib(err === 'no-speech' ? 'Ich habe nichts gehört. Tippe auf „Aufnehmen“ und sprich gleich danach.' : `${micErrorText(err, c.lang)} (Fehlercode: ${err})`);
+    }
+  },
   'mic-test': async (el) => {
     const out = $('#mic-test-out');
     if (!out) return;
@@ -240,7 +267,8 @@ const actions = {
         onInterim: (t) => { out.textContent = `Ich höre: „${t}“`; },
       });
       if (same && stream) peak = micMeter.peak;
-      out.textContent = alts.length ? `Es klappt! Erkannt: „${alts[0]}“` : `Ich habe nichts erkannt. ${silenceHelp(peak) || 'Sprich lauter oder näher am Mikrofon.'}`;
+      const c = alts.best && alts.best.final && alts.best.conf > 0 ? ` (Sicherheit ${Math.round(alts.best.conf * 100)} %)` : '';
+      out.textContent = alts.length ? `Es klappt! Erkannt: „${alts.best?.t || alts[0]}“${c}` : `Ich habe nichts erkannt. ${silenceHelp(peak) || 'Sprich lauter oder näher am Mikrofon.'}`;
     } catch (err) {
       if (same && stream) peak = micMeter.peak;
       out.textContent = err === 'no-speech'

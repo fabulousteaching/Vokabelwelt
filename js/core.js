@@ -186,7 +186,7 @@ function normSpeech(s, lang, keepArticle = false) {
    loose  – ähnlich klingende Wörter und alle Vorschläge des Browsers zählen (frühere Einstellung). */
 const SPEECH_LEVELS = {
   strict: { label: 'Streng', hint: 'Nur genau das Wort zählt, und der Browser muss sich sicher sein. Wird oft abgelehnt.' },
-  medium: { label: 'Mittel', hint: 'Empfohlen: Das Wort muss stimmen („Brad“ statt „bread“ ist falsch). Bei langen Wörtern ist ein kleiner Unterschied ok.' },
+  medium: { label: 'Mittel', hint: 'Empfohlen: Es zählt nur genau das Wort („Brad“ statt „bread“ ist falsch). Nur die Mehrzahl und bei langen Wörtern ein Laut dürfen abweichen.' },
   loose: { label: 'Locker', hint: 'Ähnlich klingende Wörter zählen auch.' },
 };
 const STRICT_MIN_CONFIDENCE = 0.5;
@@ -194,7 +194,7 @@ const STRICT_MIN_CONFIDENCE = 0.5;
 const frArticle = (normWithArticle) => (normWithArticle.match(/^(de la|de l|le|la|les|l|un|une|des|du)\s/) || [])[1] || '';
 
 /** Vergleicht das Erkannte mit dem Zielwort. alternatives.best = { t, conf, final } (von listenOnce) */
-function speechMatch(alternatives, word, lang, level = db.settings.speechLevel || 'medium') {
+function speechMatch(alternatives, word, lang, level = db.settings.speechLevel || 'medium', { ignoreConf = false } = {}) {
   const variants = answerVariants(word.foreign);
   const targets = variants.map((v) => normSpeech(v, lang)).filter(Boolean);
   const best = alternatives.best || { t: alternatives[0] || '', conf: 0, final: false };
@@ -219,10 +219,10 @@ function speechMatch(alternatives, word, lang, level = db.settings.speechLevel |
 
   // streng / mittel: nur der wahrscheinlichste Text zählt
   const heard = best.t || '';
+  const conf = best.final && best.conf > 0 ? best.conf : 0;
   const h = normSpeech(heard, lang);
-  if (!h) return { ok: false, score: 0, heard: '' };
+  if (!h) return { ok: false, score: 0, heard: '', conf };
   const squash = (x) => x.replace(/ /g, '');
-  const contains = (t) => (` ${h} `).includes(` ${t} `) && h.split(' ').length <= t.split(' ').length + 2;
   // „Mittel“: Plural-Endung ist ok; nur bei langen Wörtern (ab 8 Buchstaben) darf ein Buchstabe abweichen.
   // So bleibt „butter“ ≠ „better“ und „bread“ ≠ „Brad“.
   const near = (t) => {
@@ -230,21 +230,21 @@ function speechMatch(alternatives, word, lang, level = db.settings.speechLevel |
     return a === b + 's' || a === b + 'es' || (b.length >= 8 && lev(a, b) <= 1);
   };
   const ok = targets.some((t) => h === t || squash(h) === squash(t)
-    || (level === 'medium' && (contains(t) || near(t))));
+    || (level === 'medium' && near(t)));
   const score = Math.max(0, ...targets.map((t) => similarity(h, t)));
-  if (!ok) return { ok: false, score, heard };
+  if (!ok) return { ok: false, score, heard, conf };
 
   // Französisch: Wird ein Artikel gesagt, muss es der richtige sein (le ≠ la).
   if (lang === 'fr') {
     const hArt = frArticle(normSpeech(heard, lang, true));
     const tArts = variants.map((v) => frArticle(normSpeech(v, lang, true))).filter(Boolean);
-    if (hArt && tArts.length && !tArts.includes(hArt)) return { ok: false, score, heard, note: 'article' };
+    if (hArt && tArts.length && !tArts.includes(hArt)) return { ok: false, score, heard, conf, note: 'article' };
   }
-  // Streng: Der Browser war sich selbst nicht sicher → nicht zählen.
-  if (level === 'strict' && best.final && best.conf > 0 && best.conf < STRICT_MIN_CONFIDENCE) {
-    return { ok: false, score, heard, note: 'unsure' };
-  }
-  return { ok: true, score: 1, heard };
+  // War sich der Browser nicht sicher genug? (Aussprache „wie geschrieben“ macht ihn oft unsicherer.)
+  // Die Schwelle stellt man in den Einstellungen ein – am besten mit zwei Probe-Aufnahmen.
+  const need = ignoreConf ? 0 : level === 'strict' ? Math.max(STRICT_MIN_CONFIDENCE, db.settings.minConf || 0) : (db.settings.minConf || 0);
+  if (need > 0 && conf > 0 && conf < need) return { ok: false, score, heard, conf, need, note: 'unsure' };
+  return { ok: true, score: 1, heard, conf };
 }
 
 /** Text, der vorgelesen wird (Abkürzungen ausgeschrieben) */
@@ -330,7 +330,7 @@ function parseVocab(text, opts = {}) {
 
 /* ---------------- Speicher ---------------- */
 const STORE_KEY = 'vokabelwelt.v1';
-const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '', speechLevel: 'medium' };
+const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '', speechLevel: 'medium', minConf: 0 };
 let db = { sets: [], settings: structuredClone(DEFAULT_SETTINGS) };
 
 function loadDB() {

@@ -502,17 +502,17 @@ function speakZone(set, w) {
       </div>`;
   }
   if (s === 'ok') {
-    return `<div class="banner good">${icon('check')}<div><strong>Richtig!</strong>${speakM.heard ? ` Ich habe „${esc(speakM.heard)}“ verstanden.` : ''}</div></div>
+    return `<div class="banner good">${icon('check')}<div><strong>Richtig!</strong>${speakM.heard ? ` Ich habe „${esc(speakM.heard)}“ verstanden.` : ''}${confTag(speakM.conf)}</div></div>
       <div class="row center"><button class="btn primary" data-action="speak-next">Weiter ${icon('right')}</button></div>`;
   }
   if (s === 'bad') {
     const help = speakM.heard ? '' : (silenceHelp(speakM.peak) || 'Wenn das öfter passiert: Einstellungen (oben rechts) → „Mikrofon testen“.');
     const detail = !speakM.heard ? ' Tippe auf das Mikrofon und sprich gleich danach laut und deutlich.'
-      : speakM.note === 'unsure' ? ` Ich habe „${esc(speakM.heard)}“ verstanden, war mir aber nicht sicher. Sprich es noch einmal ganz deutlich.`
+      : speakM.note === 'unsure' ? ` Ich habe „${esc(speakM.heard)}“ verstanden, aber nicht deutlich genug. Hör es dir an und sprich es noch einmal ganz genau so.`
         : speakM.note === 'article' ? ` Ich habe „${esc(speakM.heard)}“ verstanden. Achte auf den Artikel: „${esc(w.foreign)}“.`
           : ` Ich habe „${esc(speakM.heard)}“ verstanden. Richtig ist „${esc(w.foreign)}“.`;
     return `<div class="banner bad">${icon('x')}<div><strong>${speakM.heard ? 'Noch nicht ganz.' : 'Ich habe nichts gehört.'}</strong>
-        ${detail}
+        ${detail}${speakM.heard ? confTag(speakM.conf, speakM.need) : ''}
         ${help ? `<span class="help-line">${esc(help)}</span>` : ''}</div></div>
       <div class="row center">${listenBtns}</div>
       <div class="row center">
@@ -528,6 +528,12 @@ function speakZone(set, w) {
       ${!showPic || speakM.revealed ? `<button class="btn ghost" data-action="speak-hear">${icon('speaker')} Vorher anhören</button>` : ''}
       <button class="btn ghost" data-action="speak-skip">Überspringen ${icon('right')}</button>
     </div>`;
+}
+
+/** Kleine Anzeige, wie sicher der Browser war (hilft beim Einstellen der Mindest-Sicherheit) */
+function confTag(conf, need = 0) {
+  if (!(conf > 0)) return '';
+  return `<span class="conf-tag">Sicherheit ${Math.round(conf * 100)} %${need ? ` · nötig ${Math.round(need * 100)} %` : ''}</span>`;
 }
 
 function updateSpeakZone() {
@@ -591,6 +597,8 @@ async function doListen() {
     const res = speechMatch(alts, w, set.lang);
     speakM.heard = res.heard || (db.settings.speechLevel === 'loose' ? alts[0] : '') || '';
     speakM.note = res.note || '';
+    speakM.conf = res.conf || 0;
+    speakM.need = res.need || 0;
     if (res.ok) {
       speakM.state = 'ok';
       if (!speakM.results.has(w.id)) speakM.results.set(w.id, speakM.attempts === 1 && !speakM.revealed ? 'ok' : 'retry');
