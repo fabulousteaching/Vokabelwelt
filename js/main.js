@@ -211,6 +211,29 @@ const actions = {
     speakM.state = 'idle';
     updateSpeakZone();
   },
+  'az-test': async (el) => {
+    const out = $('#az-test-out');
+    readAzureSettings();
+    const a = db.settings.azure;
+    if (!a.key) { out.textContent = 'Bitte zuerst den Schlüssel einfügen.'; return; }
+    el.disabled = true;
+    out.textContent = 'Verbinde mit Microsoft …';
+    try {
+      const res = await azureAssess({ foreign: 'hello', german: '' }, 'en', { onStart: () => { out.textContent = 'Ich höre zu – sag „hello“!'; } });
+      const v = azureVerdict(res);
+      out.textContent = `Es klappt! Verstanden: „${res.text}“ – ${v.acc} von 100 Punkten.${a.on ? '' : ' Schalte jetzt „Genaue Prüfung einschalten“ ein.'}`;
+    } catch (err) {
+      out.textContent = err === 'no-speech' ? 'Verbindung klappt, aber ich habe nichts gehört. Sag „hello“ gleich nach dem Tippen.'
+        : `${String(err).startsWith('azure') ? azureErrorText(err) : micErrorText(err, 'en')} (Fehlercode: ${err})`;
+    }
+    el.disabled = false;
+  },
+  'speak-no-azure': () => {
+    speakM.noAzure = true;
+    speakM.state = 'idle';
+    updateSpeakZone();
+    toast('Für diese Runde ohne genaue Prüfung.');
+  },
   'calib-start': () => {
     const d = calibDefaults();
     ui.calib = { step: 1, word: d.word, lang: d.lang, r1: null, r2: null, busy: false, ok: false };
@@ -382,6 +405,10 @@ async function importFromHash() {
     if (!data.rows.length) throw new Error('leer');
     const set = newSet({ name: data.name, lang: data.lang, rows: data.rows, picStyle: data.picStyle });
     set.shareId = share;
+    if (data.az && !azureReady()) {
+      db.settings.azure = { ...DEFAULT_SETTINGS.azure, on: true, key: data.az.key, region: data.az.region, minScore: data.az.minScore };
+      setTimeout(() => toast('Die genaue Aussprache-Prüfung ist eingeschaltet.'), 1200);
+    }
     saveDB();
     openSet(set.id);
     toast(`Neue Vokabelportion „${set.name}“ geladen.`);

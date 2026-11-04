@@ -942,6 +942,7 @@ function openSettings() {
       <div class="row"><button type="button" class="btn small secondary" data-action="voice-test" data-lang="en">${icon('speaker')} Englisch testen</button>
         <button type="button" class="btn small secondary" data-action="voice-test" data-lang="fr">${icon('speaker')} Französisch testen</button></div>`
         : '<p class="warn">Dieser Browser kann nicht vorlesen.</p>'}
+      ${azureSettingsHTML(s)}
       <div class="field"><span class="label">Mikrofon und Spracherkennung</span>
         ${canListen()
           ? `<label class="field" for="mic-device"><span class="small muted">Mikrofon</span>
@@ -959,6 +960,7 @@ function openSettings() {
   fillMicSelect();
   ui.calib = null;
   m.addEventListener('input', (e) => {
+    if (e.target.id?.startsWith('az-')) { readAzureSettings(); return; }
     if (e.target.id !== 'set-minconf') return;
     s.minConf = parseFloat(e.target.value);
     const v = $('#minconf-val');
@@ -972,9 +974,58 @@ function openSettings() {
     if (t.id === 'set-autospeak') s.autoSpeak = t.checked;
     if (t.id === 'set-rate') s.rate = parseFloat(t.value);
     if (t.id === 'set-minconf') s.minConf = parseFloat(t.value);
+    if (t.id?.startsWith('az-')) readAzureSettings();
     if (t.id?.startsWith('voice-')) s.voice = { ...(s.voice || {}), [t.dataset.lang]: t.value };
     saveDB();
   });
+}
+
+/* ---------- Genaue Aussprache-Prüfung (Microsoft Azure) ---------- */
+function azureSettingsHTML(s) {
+  const a = { ...DEFAULT_SETTINGS.azure, ...(s.azure || {}) };
+  return `<div class="field azure-box">
+    <span class="label">Genaue Aussprache-Prüfung (Microsoft Azure)</span>
+    <p class="muted small">Prüft Laut für Laut wie Sprach-Apps (0–100 Punkte). Erkennt auch, wenn ein Wort so ausgesprochen wird, wie es geschrieben ist. Braucht einen kostenlosen Schlüssel von Microsoft.</p>
+    <label class="switch"><input type="checkbox" id="az-on" ${a.on ? 'checked' : ''}><span>Genaue Prüfung einschalten</span></label>
+    <div class="az-fields">
+      <label class="field" for="az-key"><span class="small muted">Schlüssel („Key 1“)</span>
+        <input id="az-key" type="password" autocomplete="off" spellcheck="false" value="${esc(a.key)}" placeholder="Schlüssel hier einfügen"></label>
+      <label class="field" for="az-region"><span class="small muted">Region (wie beim Erstellen gewählt)</span>
+        <select id="az-region">${AZURE_REGIONS.map(([k, n]) => `<option value="${k}" ${a.region === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+          ${AZURE_REGIONS.some(([k]) => k === a.region) ? '' : `<option value="${esc(a.region)}" selected>${esc(a.region)}</option>`}</select></label>
+      <label for="az-min"><span class="small muted">Mindestpunktzahl: <strong id="az-min-val">${a.minScore}</strong> von 100</span></label>
+      <input type="range" id="az-min" min="40" max="95" step="5" value="${a.minScore}">
+      <div class="row"><button type="button" class="btn small secondary" data-action="az-test">${icon('mic')} Testen: „hello“ sagen</button></div>
+      <p class="small" id="az-test-out" aria-live="polite"></p>
+      <label class="switch small"><input type="checkbox" id="az-share" ${a.share ? 'checked' : ''}><span>Schlüssel im Teilen-Link mitgeben (damit es auch auf den Geräten der Kinder geht)</span></label>
+      <p class="muted small">Achtung: Wer den Link hat, kann den Schlüssel sehen und dein Kontingent verbrauchen. Nutze dafür nur den kostenlosen Tarif „F0“. Die Sprachaufnahmen werden zur Bewertung an Microsoft geschickt.</p>
+    </div>
+    <details class="az-help"><summary>So bekommst du einen Schlüssel (ca. 10 Minuten)</summary>
+      <ol class="small">
+        <li><a href="https://portal.azure.com" target="_blank" rel="noopener">portal.azure.com</a> öffnen und mit einem Microsoft-Konto anmelden. Ohne Azure-Konto: kostenloses Konto anlegen. Microsoft fragt dabei meist nach einer Kreditkarte zur Bestätigung.</li>
+        <li>Oben in die Suche <strong>„Speech“</strong> eingeben und den <strong>Speech-Dienst</strong> (Azure AI Speech) öffnen → <strong>Erstellen</strong>.</li>
+        <li>Region <strong>Germany West Central</strong> (oder West Europe), Tarif <strong>Free F0</strong>, beliebiger Name → Überprüfen und erstellen.</li>
+        <li>Wenn fertig: <strong>Zur Ressource</strong> → links <strong>„Schlüssel und Endpunkt“</strong> → <strong>Schlüssel 1</strong> kopieren.</li>
+        <li>Hier einfügen, dieselbe Region wählen, „Genaue Prüfung einschalten“ und testen.</li>
+      </ol>
+      <p class="muted small">Die Bezeichnungen im Azure-Portal können sich leicht unterscheiden.</p>
+    </details>
+  </div>`;
+}
+
+function readAzureSettings() {
+  const s = db.settings;
+  const a = { ...DEFAULT_SETTINGS.azure, ...(s.azure || {}) };
+  const on = $('#az-on'), key = $('#az-key'), region = $('#az-region'), min = $('#az-min'), share = $('#az-share');
+  if (on) a.on = on.checked;
+  if (key) a.key = key.value.trim();
+  if (region) a.region = region.value;
+  if (min) a.minScore = parseInt(min.value, 10) || 70;
+  if (share) a.share = share.checked;
+  s.azure = a;
+  const mv = $('#az-min-val');
+  if (mv) mv.textContent = a.minScore;
+  saveDB();
 }
 
 /* ---------- Mindest-Sicherheit mit zwei Probe-Aufnahmen einstellen ---------- */

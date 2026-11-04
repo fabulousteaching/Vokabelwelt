@@ -330,7 +330,8 @@ function parseVocab(text, opts = {}) {
 
 /* ---------------- Speicher ---------------- */
 const STORE_KEY = 'vokabelwelt.v1';
-const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '', speechLevel: 'medium', minConf: 0 };
+const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '', speechLevel: 'medium', minConf: 0,
+  azure: { on: false, key: '', region: 'germanywestcentral', minScore: 70, share: false } };
 let db = { sets: [], settings: structuredClone(DEFAULT_SETTINGS) };
 
 function loadDB() {
@@ -965,6 +966,7 @@ function listenOnce(lang, { onStart, onInterim, timeoutMs = 8000, track = null }
   });
 }
 function stopListening(abort = false) {
+  if (abort && typeof stopAzure === 'function') stopAzure();
   const r = listening.rec;
   if (!r) return;
   try { abort ? r.abort() : r.stop(); } catch { /* */ }
@@ -1070,8 +1072,10 @@ function b64urlDecode(str) {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 async function encodeShare(set) {
+  const az = db.settings.azure || {};
   const data = {
     v: 1, n: set.name, l: set.lang, s: set.picStyle,
+    ...(az.share && az.key && az.region ? { az: [az.key, az.region, az.minScore ?? 70] } : {}),
     w: set.words.map((w) => {
       const row = [w.foreign, w.german];
       const p = w.pic;
@@ -1099,6 +1103,7 @@ async function decodeShare(code) {
   } else json = new TextDecoder().decode(bytes);
   const d = JSON.parse(json);
   return {
+    az: Array.isArray(d.az) && d.az[0] && d.az[1] ? { key: String(d.az[0]), region: String(d.az[1]), minScore: Number(d.az[2]) || 70 } : null,
     name: String(d.n || 'Vokabeln'), lang: d.l === 'fr' ? 'fr' : 'en', picStyle: ['picto', 'clipart', 'photo', 'emoji'].includes(d.s) ? d.s : 'picto',
     rows: (d.w || []).map((r) => ({
       foreign: String(r[0] || ''), german: String(r[1] || ''),
