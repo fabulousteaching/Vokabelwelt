@@ -206,19 +206,41 @@ const actions = {
     if (!out) return;
     if (!canListen()) { out.textContent = speechBrowserMissing ? 'Dieser Browser (Brave oder Opera) hat keine Spracherkennung. Nimm Chrome, Edge oder Safari.' : micErrorText('not-supported', 'en'); return; }
     const lang = currentSet()?.lang || 'en';
+    const bar = $('#mic-test-level');
+    const setBar = (lv) => { if (bar) bar.style.setProperty('--lv', lv.toFixed(3)); };
     el.disabled = true;
+    const same = meterDuringListen(); // Chrome/Edge: Pegel und Erkennung gleichzeitig
+    // 1) Pegel: kommt Ton an?
     out.textContent = 'Mikrofon wird eingeschaltet …';
+    let stream = await startMeter(setBar, db.settings.micId).catch(() => null);
+    fillMicSelect();
+    let peak = null;
+    if (stream && !same) {
+      out.textContent = `Sag jetzt etwas – der Balken sollte sich bewegen.`;
+      await sleep(3000);
+      peak = micMeter.peak;
+      stopMeter(); setBar(0);
+    }
+    // 2) Spracherkennung
+    out.textContent = `Ich höre zu – sag etwas auf ${LANGS[lang].name}!`;
     try {
       const alts = await listenOnce(lang, {
+        track: same && stream && db.settings.micId ? stream.getAudioTracks()[0] : null,
         onStart: () => { out.textContent = `Ich höre zu – sag etwas auf ${LANGS[lang].name}!`; },
         onInterim: (t) => { out.textContent = `Ich höre: „${t}“`; },
       });
-      out.textContent = alts.length ? `Es klappt! Erkannt: „${alts[0]}“` : 'Das Mikrofon ist an, aber ich habe nichts gehört. Sprich lauter oder näher am Mikrofon.';
+      if (same && stream) peak = micMeter.peak;
+      out.textContent = alts.length ? `Es klappt! Erkannt: „${alts[0]}“` : `Ich habe nichts erkannt. ${silenceHelp(peak) || 'Sprich lauter oder näher am Mikrofon.'}`;
     } catch (err) {
-      out.textContent = err === 'no-speech' ? 'Das Mikrofon ist an, aber ich habe nichts gehört. Sprich lauter oder näher am Mikrofon.' : `${micErrorText(err, lang)} (Fehlercode: ${err})`;
+      if (same && stream) peak = micMeter.peak;
+      out.textContent = err === 'no-speech'
+        ? `Ich habe nichts erkannt. ${silenceHelp(peak) || 'Sprich lauter oder näher am Mikrofon.'}`
+        : `${micErrorText(err, lang)} (Fehlercode: ${err})`;
     }
+    stopMeter(); setBar(0);
     el.disabled = false;
   },
+
   'speak-self': (el) => {
     const set = currentSet();
     const w = speakWord(set);

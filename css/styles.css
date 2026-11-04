@@ -478,6 +478,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); outline: 
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 55%, transparent); } 100% { box-shadow: 0 0 0 28px transparent; } }
 .mic.starting { background: var(--ink-3); box-shadow: 0 5px 0 var(--ink-2); }
 .mic-label { font-weight: 700; color: var(--ink-2); }
+.mic-level { --lv: 0; width: min(240px, 80%); height: 10px; border-radius: 99px; background: var(--desk-deep); overflow: hidden; }
+.mic-level span { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--green); transform-origin: left; transform: scaleX(var(--lv)); transition: transform .06s linear; }
+.mic-level.big { width: 100%; height: 14px; }
+.help-line { display: block; margin-top: .4rem; font-size: .92rem; color: var(--ink-2); }
 .heard-live { min-height: 1.6em; font-size: 1.25rem; font-weight: 700; color: var(--blue-ink); }
 .err-code { display: block; margin-top: .3rem; font-size: .8rem; color: var(--ink-3); }
 .word-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }

@@ -277,7 +277,7 @@ function parseVocab(text, opts = {}) {
 
 /* ---------------- Speicher ---------------- */
 const STORE_KEY = 'vokabelwelt.v1';
-const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9 };
+const DEFAULT_SETTINGS = { sound: true, autoSpeak: true, accent: 'gb', voice: { en: '', fr: '' }, rate: 0.9, micId: '' };
 let db = { sets: [], settings: structuredClone(DEFAULT_SETTINGS) };
 
 function loadDB() {
@@ -801,7 +801,7 @@ const canListen = () => !!SpeechRec && !speechBrowserMissing;
  * Hört einmal zu. Liefert alle erkannten Varianten (auch Zwischenergebnisse – Safari meldet
  * manchmal kein Endergebnis). Hört spätestens nach timeoutMs auf.
  */
-function listenOnce(lang, { onStart, onInterim, timeoutMs = 8000 } = {}) {
+function listenOnce(lang, { onStart, onInterim, timeoutMs = 8000, track = null } = {}) {
   return new Promise((resolve, reject) => {
     let rec, timer = null, settled = false;
     let alts = [];
@@ -848,13 +848,77 @@ function listenOnce(lang, { onStart, onInterim, timeoutMs = 8000 } = {}) {
       try { rec.stop(); } catch { /* */ }
       setTimeout(() => finish(alts), 1500);
     }, timeoutMs);
-    try { rec.start(); } catch { finish(null, 'busy'); }
+    // Neuere Chrome-Versionen können ein bestimmtes Mikrofon nutzen (start(track)); ältere ignorieren das Argument.
+    try { if (track) rec.start(track); else rec.start(); } catch { try { rec.start(); } catch { finish(null, 'busy'); } }
   });
 }
 function stopListening(abort = false) {
   const r = listening.rec;
   if (!r) return;
   try { abort ? r.abort() : r.stop(); } catch { /* */ }
+}
+
+/* ---------- Pegelanzeige: Kommt überhaupt Ton vom Mikrofon an? ---------- */
+const isSafari = /^((?!chrome|chromium|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent);
+const micMeter = { stream: null, ctx: null, raf: 0, peak: 0, level: 0 };
+/** Pegel während des Sprechens nur in Chromium-Browsern (Safari würde ein zweites Mal fragen). */
+const meterDuringListen = () => !!navigator.mediaDevices?.getUserMedia && !isSafari && !isAppleMobile;
+
+async function startMeter(onLevel, deviceId = '') {
+  stopMeter();
+  if (!navigator.mediaDevices?.getUserMedia) return null;
+  const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true };
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia(constraints); } catch (e) {
+    if (deviceId) { try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { return null; } } else return null;
+  }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AC();
+  try { await ctx.resume(); } catch { /* */ }
+  const an = ctx.createAnalyser();
+  an.fftSize = 1024;
+  ctx.createMediaStreamSource(stream).connect(an);
+  const buf = new Uint8Array(an.fftSize);
+  Object.assign(micMeter, { stream, ctx, peak: 0, level: 0 });
+  const tick = () => {
+    if (micMeter.stream !== stream) return;
+    an.getByteTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) { const x = (buf[i] - 128) / 128; sum += x * x; }
+    const level = Math.min(1, Math.sqrt(sum / buf.length) * 7);
+    micMeter.level = level;
+    micMeter.peak = Math.max(micMeter.peak, level);
+    onLevel?.(level);
+    micMeter.raf = requestAnimationFrame(tick);
+  };
+  tick();
+  return stream;
+}
+function stopMeter() {
+  cancelAnimationFrame(micMeter.raf);
+  micMeter.stream?.getTracks().forEach((t) => t.stop());
+  try { micMeter.ctx?.close(); } catch { /* */ }
+  micMeter.stream = null; micMeter.ctx = null;
+}
+const MIC_SOUND_PEAK = 0.12; // darüber: es kommt Stimme an
+
+async function listMics() {
+  try {
+    const all = await navigator.mediaDevices.enumerateDevices();
+    return all.filter((d) => d.kind === 'audioinput');
+  } catch { return []; }
+}
+
+/** Was tun, wenn nichts erkannt wurde? Hängt davon ab, ob Ton ankam. */
+function silenceHelp(peak) {
+  if (peak == null) return '';
+  const win = /Windows/i.test(navigator.userAgent), mac = /Macintosh/i.test(navigator.userAgent) && !isAppleMobile;
+  if (peak < MIC_SOUND_PEAK) {
+    return 'Dein Browser bekommt keinen Ton vom Mikrofon. Ist das richtige Mikrofon gewählt (Einstellungen → Mikrofon testen)? Ist es stummgeschaltet?'
+      + (win ? ' Unter Windows: Einstellungen → Datenschutz und Sicherheit → Mikrofon → „Desktop-Apps Zugriff erlauben“ einschalten.' : '')
+      + (mac ? ' Am Mac: Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon → deinen Browser einschalten.' : '');
+  }
+  return 'Das Mikrofon hört dich, aber die Spracherkennung liefert keinen Text. Sie braucht Internet und ist in manchen Schulnetzen gesperrt. Probiere ein anderes Netz oder einen anderen Browser (Chrome, Edge oder Safari).';
 }
 
 /** Verständliche Erklärung zu den Fehlercodes der Spracherkennung */

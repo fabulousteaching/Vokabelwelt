@@ -490,6 +490,7 @@ function speakZone(set, w) {
   if (s === 'starting' || s === 'listening') {
     return `<button class="mic ${s === 'listening' ? 'listening' : 'starting'}" data-action="listen" aria-label="Aufnahme beenden">${icon('mic')}</button>
       <p class="mic-label">${s === 'listening' ? 'Ich höre zu … sprich jetzt!' : 'Mikrofon wird eingeschaltet …'}</p>
+      ${speakM.meter ? '<div class="mic-level" id="mic-level" aria-hidden="true"><span></span></div>' : ''}
       <p class="heard-live" id="heard-live" aria-live="polite">${speakM.live ? `„${esc(speakM.live)}“` : ''}</p>`;
   }
   if (s === 'error') {
@@ -505,8 +506,10 @@ function speakZone(set, w) {
       <div class="row center"><button class="btn primary" data-action="speak-next">Weiter ${icon('right')}</button></div>`;
   }
   if (s === 'bad') {
+    const help = speakM.heard ? '' : (silenceHelp(speakM.peak) || 'Wenn das öfter passiert: Einstellungen (oben rechts) → „Mikrofon testen“.');
     return `<div class="banner bad">${icon('x')}<div><strong>${speakM.heard ? 'Noch nicht ganz.' : 'Ich habe nichts gehört.'}</strong>
-        ${speakM.heard ? ` Ich habe „${esc(speakM.heard)}“ verstanden.` : ' Sprich etwas lauter und näher am Mikrofon.'}</div></div>
+        ${speakM.heard ? ` Ich habe „${esc(speakM.heard)}“ verstanden.` : ' Tippe auf das Mikrofon und sprich gleich danach laut und deutlich.'}
+        ${help ? `<span class="help-line">${esc(help)}</span>` : ''}</div></div>
       <div class="row center">${listenBtns}</div>
       <div class="row center">
         <button class="btn primary" data-action="listen">${icon('mic')} Nochmal sprechen</button>
@@ -546,9 +549,24 @@ async function doListen() {
   clearTimeout(speakM.timer);
   speakM.state = 'starting';
   speakM.live = '';
+  speakM.peak = null;
+  speakM.meter = false;
   updateSpeakZone();
+  let track = null;
+  if (meterDuringListen()) {
+    const stream = await Promise.race([
+      startMeter((lv) => { const b = $('#mic-level'); if (b) b.style.setProperty('--lv', lv.toFixed(3)); }, db.settings.micId).catch(() => null),
+      sleep(2500).then(() => null),
+    ]);
+    if (stream && micMeter.stream === stream) {
+      speakM.meter = true;
+      if (db.settings.micId) track = stream.getAudioTracks()[0] || null;
+      updateSpeakZone();
+    }
+  }
   try {
     const alts = await listenOnce(set.lang, {
+      track,
       onStart: () => {
         if (speakM.state !== 'starting' || speakWord(set) !== w) return;
         speakM.state = 'listening';
@@ -561,8 +579,11 @@ async function doListen() {
         if (el) el.textContent = `„${t}“`;
       },
     });
+    if (speakM.meter) speakM.peak = micMeter.peak;
+    stopMeter();
     if (ui.view !== 'speak' || speakWord(set) !== w) return;
     speakM.attempts++;
+    if (!alts.length) speakM.silentTries = (speakM.silentTries || 0) + 1; else speakM.silentTries = 0;
     const res = speechMatch(alts, w, set.lang);
     speakM.heard = res.heard || alts[0] || '';
     if (res.ok) {
@@ -576,9 +597,12 @@ async function doListen() {
       sfx.bad();
     }
   } catch (err) {
+    if (speakM.meter) speakM.peak = micMeter.peak;
+    stopMeter();
     if (ui.view !== 'speak' || speakWord(set) !== w) return;
     if (err === 'no-speech') {
       speakM.attempts++; speakM.heard = ''; speakM.state = 'bad';
+      speakM.silentTries = (speakM.silentTries || 0) + 1;
     } else if (err === 'aborted') {
       speakM.state = 'idle';
     } else {

@@ -111,6 +111,7 @@ function go(view, extra = {}) {
 
 function stopModes() {
   stopListening(true);
+  stopMeter();
   stopSpeaking();
   clearTimeout(speakM?.timer);
   match?.ro?.disconnect();
@@ -143,6 +144,7 @@ function openModal(html, { cls = '', onClose, label = 'Dialog' } = {}) {
 function closeModal(silent = false) {
   const m = ui.modal;
   if (!m) return;
+  if (m.el.querySelector('#mic-test-out')) { stopListening(true); stopMeter(); }
   ui.modal = null;
   m.el.remove();
   document.body.classList.remove('has-modal');
@@ -874,8 +876,11 @@ function openSettings() {
         : '<p class="warn">Dieser Browser kann nicht vorlesen.</p>'}
       <div class="field"><span class="label">Mikrofon und Spracherkennung</span>
         ${canListen()
-          ? `<div class="row"><button type="button" class="btn small secondary" data-action="mic-test">${icon('mic')} Mikrofon testen</button></div>
-             <p class="muted small" id="mic-test-out" aria-live="polite">Tippe auf „Mikrofon testen“ und sag ein Wort.</p>`
+          ? `<label class="field" for="mic-device"><span class="small muted">Mikrofon</span>
+               <select id="mic-device"><option value="">Standard-Mikrofon</option></select></label>
+             <div class="row"><button type="button" class="btn small secondary" data-action="mic-test">${icon('mic')} Mikrofon testen</button></div>
+             <div class="mic-level big" id="mic-test-level" aria-hidden="true"><span></span></div>
+             <p class="small" id="mic-test-out" aria-live="polite">Tippe auf „Mikrofon testen“ und sag ein Wort. Der Balken sollte sich beim Sprechen bewegen.</p>`
           : `<p class="muted small">${speechBrowserMissing ? 'Dieser Browser (Brave oder Opera) hat keine Spracherkennung.' : 'Dieser Browser kann keine Sprache erkennen.'} Am besten Chrome, Edge oder Safari benutzen.</p>`}
       </div>
       <hr>
@@ -883,14 +888,25 @@ function openSettings() {
       <button type="button" class="btn small danger-ghost" data-action="wipe">${icon('trash')} Alles löschen</button>
     </div>`, { label: 'Einstellungen' });
   const m = ui.modal.el;
+  fillMicSelect();
   m.addEventListener('change', (e) => {
     const t = e.target;
+    if (t.id === 'mic-device') { s.micId = t.value; saveDB(); }
     if (t.id === 'set-sound') s.sound = t.checked;
     if (t.id === 'set-autospeak') s.autoSpeak = t.checked;
     if (t.id === 'set-rate') s.rate = parseFloat(t.value);
     if (t.id?.startsWith('voice-')) s.voice = { ...(s.voice || {}), [t.dataset.lang]: t.value };
     saveDB();
   });
+}
+
+async function fillMicSelect() {
+  const sel = $('#mic-device');
+  if (!sel) return;
+  const mics = await listMics();
+  const cur = db.settings.micId;
+  sel.innerHTML = '<option value="">Standard-Mikrofon</option>' + mics.filter((d) => d.deviceId && d.deviceId !== 'default')
+    .map((d, i) => `<option value="${esc(d.deviceId)}" ${d.deviceId === cur ? 'selected' : ''}>${esc(d.label || `Mikrofon ${i + 1}`)}</option>`).join('');
 }
 
 /* ---------------- Teilen ---------------- */
