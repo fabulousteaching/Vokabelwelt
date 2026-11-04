@@ -34,8 +34,8 @@ Besonderheiten beim Prüfen:
 Für jede Karte wird automatisch ein Bild gesucht. Oben bei „Deine Karten“ wählst du die Bildquelle:
 
 - **Piktogramme** (Standard): einfache, einheitlich gezeichnete Bilder von [ARASAAC](https://arasaac.org). Sie sind dafür gemacht, eindeutig zu sein, und es gibt sie auch für Verben („schwimmen“), Gefühle („glücklich“) und Eigenschaften. Gesucht wird mit dem deutschen **und** dem fremdsprachigen Wort. Passt ein Piktogramm zu beiden, wird es bevorzugt – bei „bat – Fledermaus“ also das Tier und nicht der Schläger.
-- **Fotos**: Leitbilder aus Wikipedia. Nur für Nomen; bei Verben und Adjektiven zeigen Fotos oft etwas anderes.
-- **KI-Bilder**: werden von einer KI gemalt (Dienst: pollinations.ai, ohne Anmeldung). Experimentell und langsam.
+- **Fotos**: Leitbilder aus Wikipedia. Nur für Nomen; bei Verben und Adjektiven zeigen Fotos oft etwas anderes. Im Bild-Dialog wird zusätzlich in [Openverse](https://openverse.org) gesucht (über 800 Millionen frei lizenzierte Fotos und Zeichnungen).
+- **Cliparts**: farbige Zeichnungen aus offenen Sammlungen (Microsoft Fluent Emoji, Google Noto Emoji, OpenMoji, Twemoji u. a., über [Iconify](https://iconify.design)).
 - **Emojis**: ein eingebautes Bildwörterbuch mit rund 400 Schulwörtern. Funktioniert auch ohne Internet.
 
 Grundsatz: lieber kein Bild als ein missverständliches.
@@ -50,7 +50,7 @@ Tipps für eindeutige Bilder:
 - Nomen mit Artikel schreiben („der Hund“), dann erkennt Vokabelwelt, dass es ein Nomen ist.
 - Für alles andere: Karte antippen → „Mehr …“ → eigenes Suchwort, Emoji oder eigenes Foto.
 
-Ein Klick auf eine Karte öffnet den Bild-Dialog mit allen Quellen, auch zum Hochladen eigener Fotos (Tablet-Kamera oder Strg+V).
+Ein Klick auf eine Karte öffnet den Bild-Dialog mit allen Quellen. Unter „Eigenes Bild“ gibt es außerdem Knöpfe für **Google Bilder** und **Pixabay**: Bild dort kopieren (Rechtsklick → „Bild kopieren“, am iPhone lange drücken → „Kopieren“) und im Feld einfügen. Eigene Fotos lassen sich auch hochladen oder mit der Tablet-Kamera aufnehmen.
 
 Piktogramme: Sergio Palao, ARASAAC (https://arasaac.org), Eigentum der Regierung von Aragón, Lizenz CC BY-NC-SA. Die Nutzung ist für nicht-kommerzielle Zwecke wie den Unterricht erlaubt.
 

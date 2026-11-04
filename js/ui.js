@@ -389,7 +389,7 @@ function viewSet(set) {
         <div class="deck-controls">
           <span class="label-inline">Bilder:</span>
           <div class="seg small" role="group" aria-label="Bildquelle">
-            ${[['picto', 'picto', 'Piktogramme'], ['photo', 'camera', 'Fotos'], ['ai', 'sparkle', 'KI-Bilder'], ['emoji', 'smile', 'Emojis']].map(([k, ic, t]) => `<button class="seg-btn" data-action="pic-style" data-style="${k}" aria-pressed="${set.picStyle === k}">${icon(ic)}<span>${t}</span></button>`).join('')}
+            ${[['picto', 'picto', 'Piktogramme'], ['clipart', 'brush', 'Cliparts'], ['photo', 'camera', 'Fotos'], ['emoji', 'smile', 'Emojis']].map(([k, ic, t]) => `<button class="seg-btn" data-action="pic-style" data-style="${k}" aria-pressed="${set.picStyle === k}">${icon(ic)}<span>${t}</span></button>`).join('')}
           </div>
           <button class="btn small primary" data-action="review-pics">${icon('check')} Bilder prüfen</button>
           ${claudeSample ? `<button class="btn small secondary" data-action="draw-missing">${icon('brush')} Fehlende Bilder zeichnen</button>` : ''}
@@ -414,7 +414,7 @@ function picStatusText(set) {
   const job = picJobs.get(set.id);
   if (job) return `<span class="spinner" aria-hidden="true"></span> Bilder werden gesucht … ${job.done} von ${job.total}`;
   if (set.picStyle === 'picto' && net.arasaacDown) return 'Die Piktogramm-Sammlung ist gerade nicht erreichbar – deshalb siehst du Emojis. Tippe auf eine Karte, um ein Bild selbst zu wählen.';
-  if (set.picStyle === 'ai' && net.aiDown) return 'Der KI-Bilderdienst antwortet gerade nicht. Stattdessen siehst du Fotos oder Emojis. Tippe auf eine Karte, um ein Bild selbst zu wählen.';
+  if (set.picStyle === 'clipart' && net.clipartDown) return 'Die Clipart-Sammlung ist gerade nicht erreichbar. Stattdessen siehst du Piktogramme oder Emojis. Tippe auf eine Karte, um ein Bild selbst zu wählen.';
   if (set.picStyle !== 'emoji' && net.wikiDown) return 'Keine Verbindung zu Wikipedia – deshalb gibt es Emojis statt Fotos. Tippe auf eine Karte, um ein eigenes Bild zu wählen.';
   return 'Tipp: Prüfe die Bilder einmal mit „Bilder prüfen“, bevor du die Portion mit der Klasse teilst. Wörter ohne eindeutiges Bild lässt du einfach ohne Bild.';
 }
@@ -510,7 +510,7 @@ function openPicDialog(set, word) {
       <button type="button" class="icon-btn" data-action="close-modal" aria-label="Schließen">${icon('x')}</button>
     </header>
     <div class="tabs" role="tablist">
-      ${[['picto', 'picto', 'Piktogramm'], ['photo', 'camera', 'Fotos'], ['ai', 'sparkle', 'KI-Bild'], ...(claudeSample ? [['draw', 'brush', 'Zeichnen']] : []), ['emoji', 'smile', 'Emoji'], ['own', 'upload', 'Eigenes Bild']]
+      ${[['picto', 'picto', 'Piktogramm'], ['clipart', 'brush', 'Clipart'], ['photo', 'camera', 'Fotos'], ...(claudeSample ? [['draw', 'brush', 'Zeichnen']] : []), ['emoji', 'smile', 'Emoji'], ['own', 'upload', 'Eigenes Bild']]
         .map(([k, ic, t]) => `<button type="button" role="tab" class="tab" data-action="pic-tab" data-tab="${k}" aria-selected="${ui.picTab === k}">${icon(ic)}<span>${t}</span></button>`).join('')}
     </div>
     <div class="pd-body" id="pd-body"></div>
@@ -545,7 +545,7 @@ function choosePic(set, word, pic) {
 }
 
 function candHTML(c, kind) {
-  return `<button type="button" class="cand ${kind === 'picto' ? 'picto' : ''}" data-action="pic-choose" data-kind="${kind}" data-src="${esc(c.src)}" data-credit="${esc(c.credit ? JSON.stringify(c.credit) : '')}" title="${esc(c.title || '')}">
+  return `<button type="button" class="cand ${kind === 'picto' || kind === 'clipart' ? 'picto' : ''}" data-action="pic-choose" data-kind="${kind}" data-src="${esc(c.src)}" data-credit="${esc(c.credit ? JSON.stringify(c.credit) : '')}" title="${esc(c.title || '')}">
     <img src="${esc(c.src)}" alt="${esc(c.title || '')}" loading="lazy" onerror="this.closest('.cand').classList.add('failed')">
     ${c.title ? `<span>${esc(c.title)}</span>` : ''}
   </button>`;
@@ -584,65 +584,75 @@ async function renderPicTab(set, word) {
     });
     const first = await pictoCandidates(word, set.lang, 12);
     show(first.length ? first : await pictoSearch(deCore || foCore, set.lang));
+  } else if (tab === 'clipart') {
+    body.innerHTML = `
+      <p class="muted">Farbige Cliparts aus offenen Sammlungen (z. B. Microsoft Fluent Emoji, Google Noto). Am besten auf Englisch suchen.</p>
+      <form class="search-row" id="clip-search">
+        <input id="clip-q" type="search" value="${esc(foCore)}" aria-label="Suchbegriff (Englisch)">
+        <button class="btn secondary" type="submit">${icon('search')} Suchen</button>
+      </form>
+      <div class="cands" id="clip-results"><p class="muted"><span class="spinner"></span> Suche Cliparts …</p></div>`;
+    const runClip = async (q) => {
+      const box = $('#clip-results');
+      if (!box) return;
+      net.clipartDown = false;
+      box.innerHTML = '<p class="muted"><span class="spinner"></span> Suche …</p>';
+      const list = await clipartSearch(q, 36);
+      if (!$('#clip-results')) return;
+      if (net.clipartDown && !list.length) box.innerHTML = '<p class="muted">Die Clipart-Sammlung ist gerade nicht erreichbar. Bist du online?</p>';
+      else if (!list.length) box.innerHTML = '<p class="muted">Nichts gefunden. Probiere ein anderes englisches Wort, z. B. „dog“ statt „puppy“.</p>';
+      else box.innerHTML = list.map((c) => candHTML(c, 'clipart')).join('');
+      $$('#clip-results .cand').forEach((c) => c.classList.toggle('chosen', c.dataset.src === word.pic?.src));
+    };
+    $('#clip-search').addEventListener('submit', (e) => { e.preventDefault(); runClip($('#clip-q').value.trim()); });
+    const en = await englishTerm(word, set.lang);
+    if ($('#clip-q') && en) $('#clip-q').value = en;
+    runClip(en || foCore);
   } else if (tab === 'photo') {
     body.innerHTML = `
       <form class="search-row" id="photo-search">
-        <input id="photo-q" type="search" value="${esc(deCore || foCore)}" aria-label="Suchbegriff">
+        <input id="photo-q" type="search" value="${esc(foCore)}" aria-label="Suchbegriff">
         <button class="btn secondary" type="submit">${icon('search')} Suchen</button>
       </form>
-      <div class="cands" id="photo-results"><p class="muted"><span class="spinner"></span> Suche auf Wikipedia …</p></div>
-      <button type="button" class="btn small ghost" data-action="photo-more">Mehr Fotos von Wikimedia Commons</button>`;
+      <div class="seg small" role="group" aria-label="Art der Bilder">
+        <button type="button" class="seg-btn" data-action="photo-cat" data-cat="" aria-pressed="true">Alles</button>
+        <button type="button" class="seg-btn" data-action="photo-cat" data-cat="photograph" aria-pressed="false">Nur Fotos</button>
+        <button type="button" class="seg-btn" data-action="photo-cat" data-cat="illustration" aria-pressed="false">Nur Zeichnungen</button>
+      </div>
+      <div class="cands" id="photo-results"><p class="muted"><span class="spinner"></span> Suche …</p></div>
+      <p class="muted small">Fotos und Zeichnungen aus Wikipedia und <a href="https://openverse.org" target="_blank" rel="noopener">Openverse</a> (frei lizenziert). Am besten auf Englisch suchen.</p>
+      <button type="button" class="btn small ghost" data-action="photo-more">Noch mehr Fotos von Wikimedia Commons</button>`;
+    let cat = '';
     const run = async (q, more = false) => {
       const box = $('#photo-results');
       if (!box) return;
-      net.wikiDown = false;
+      net.wikiDown = false; net.openverseDown = false;
       box.innerHTML = '<p class="muted"><span class="spinner"></span> Suche …</p>';
       let list = [];
       if (more) list = await commonsSearch(q);
       else {
-        const [a, b] = await Promise.all([wikiSearch('de', q, 8), foCore && foCore !== q ? wikiSearch(set.lang, foCore, 8) : wikiSearch(set.lang, q, 8)]);
+        const wikiQ = q === ui.modal?.photoDefault ? (deCore || q) : q;
+        const [a, b, c] = await Promise.all([
+          cat === 'illustration' ? [] : wikiSearch('de', wikiQ, 6),
+          cat === 'illustration' ? [] : wikiSearch(set.lang === 'fr' ? 'fr' : 'en', q, 6),
+          openverseSearch(q, cat),
+        ]);
         const seen = new Set();
-        list = [...a, ...b].filter((c) => (seen.has(c.src) ? false : seen.add(c.src)));
+        list = [...a, ...b, ...c].filter((x) => (seen.has(x.src) ? false : seen.add(x.src)));
       }
       if (!$('#photo-results')) return;
-      if (net.wikiDown && !list.length) box.innerHTML = '<p class="muted">Wikipedia ist gerade nicht erreichbar. Bist du online? Du kannst auch ein Emoji oder ein eigenes Bild wählen.</p>';
-      else if (!list.length) box.innerHTML = '<p class="muted">Nichts gefunden. Probiere ein anderes Suchwort, zum Beispiel auf Englisch.</p>';
-      else box.innerHTML = list.map((c) => candHTML(c, 'photo')).join('');
-      $$('#photo-results .cand').forEach((c) => c.classList.toggle('chosen', c.dataset.src === word.pic?.src));
+      if (!list.length && (net.wikiDown || net.openverseDown)) box.innerHTML = '<p class="muted">Die Bildersuche ist gerade nicht erreichbar. Bist du online? Du kannst auch ein Piktogramm, Clipart oder eigenes Bild wählen.</p>';
+      else if (!list.length) box.innerHTML = `<p class="muted">${net.openverseBusy ? 'Openverse braucht eine kurze Pause (zu viele Suchen). Versuch es in einer Minute noch einmal.' : 'Nichts gefunden. Probiere ein anderes Suchwort, zum Beispiel auf Englisch.'}</p>`;
+      else box.innerHTML = list.map((x) => candHTML(x, 'photo')).join('');
+      $$('#photo-results .cand').forEach((x) => x.classList.toggle('chosen', x.dataset.src === word.pic?.src));
     };
     $('#photo-search').addEventListener('submit', (e) => { e.preventDefault(); run($('#photo-q').value.trim()); });
     ui.modal.photoMore = () => run($('#photo-q').value.trim() || foCore, true);
-    run(deCore || foCore);
-  } else if (tab === 'ai') {
-    body.innerHTML = `
-      <p class="muted">Eine KI malt passende Bilder. Das dauert ein paar Sekunden pro Bild und braucht Internet.</p>
-      <form class="search-row" id="ai-form">
-        <input id="ai-q" type="text" value="" placeholder="Was soll auf dem Bild sein? (am besten Englisch)" aria-label="Bildbeschreibung">
-        <button class="btn secondary" type="submit">${icon('sparkle')} Malen</button>
-      </form>
-      <div class="cands" id="ai-results"></div>`;
-    $('#ai-q').value = foCore;
-    englishTerm(word, set.lang).then((t) => { const q = $('#ai-q'); if (q && t && q.value === foCore) q.value = t; });
-    $('#ai-form').addEventListener('submit', (e) => { e.preventDefault(); runAi($('#ai-q').value.trim()); });
-    const runAi = async (subject) => {
-      if (!subject) return;
-      net.aiDown = false; net.aiFails = 0;
-      const box = $('#ai-results');
-      const seeds = [11, 23, 42, 77].map((s) => s + Math.floor(Math.random() * 900));
-      box.innerHTML = seeds.map((s) => `<div class="cand loading" data-seed="${s}"><span class="spinner"></span></div>`).join('');
-      for (const seed of seeds) {
-        const p = await aiPicture(subject, seed);
-        const slot = $(`#ai-results [data-seed="${seed}"]`);
-        if (!slot) return;
-        if (p) slot.outerHTML = candHTML({ src: p.src, credit: p.credit, title: '' }, 'ai');
-        else { slot.classList.remove('loading'); slot.classList.add('failed'); slot.innerHTML = '<span>nicht verfügbar</span>'; }
-        if (net.aiDown) {
-          $$('#ai-results .cand.loading').forEach((s) => { s.classList.remove('loading'); s.classList.add('failed'); s.innerHTML = '<span>nicht verfügbar</span>'; });
-          box.insertAdjacentHTML('beforeend', '<p class="muted wide-note">Der KI-Bilderdienst antwortet gerade nicht. Probiere es später noch einmal – oder nimm ein Foto oder Emoji.</p>');
-          return;
-        }
-      }
-    };
+    ui.modal.photoCat = (c) => { cat = c; run($('#photo-q').value.trim()); };
+    const en = await englishTerm(word, set.lang);
+    if ($('#photo-q') && en) $('#photo-q').value = en;
+    ui.modal && (ui.modal.photoDefault = en || foCore);
+    run(en || foCore);
   } else if (tab === 'draw') {
     body.innerHTML = `
       <p class="muted">Claude zeichnet ein Bild für diese Karte. Das dauert etwa 20 Sekunden.</p>
@@ -668,32 +678,56 @@ async function renderPicTab(set, word) {
     });
     draw('');
   } else if (tab === 'own') {
+    const q0 = foCore || deCore;
     body.innerHTML = `
       <div class="own-grid">
-        <label class="drop" for="own-file">
-          ${icon('upload', 'big')}
-          <strong>Foto auswählen oder aufnehmen</strong>
-          <small>Oder kopiere ein Bild und drücke hier <kbd>Strg</kbd>+<kbd>V</kbd>.</small>
-          <input id="own-file" type="file" accept="image/*">
-        </label>
-        <form class="own-url" id="own-url">
-          <label class="field" for="own-url-input"><span class="label">Oder Bild-Adresse aus dem Internet</span>
-            <input id="own-url-input" type="url" placeholder="https://…/bild.jpg"></label>
-          <button class="btn secondary" type="submit">Übernehmen</button>
-        </form>
+        <section class="web-search" aria-labelledby="web-title">
+          <p class="label" id="web-title">Bild im Internet suchen</p>
+          <div class="search-row">
+            <input id="web-q" type="search" value="${esc(q0)}" aria-label="Suchwort für Google oder Pixabay">
+          </div>
+          <div class="row">
+            <a class="btn secondary" id="web-google" target="_blank" rel="noopener" href="#">${icon('search')} Google Bilder ↗</a>
+            <a class="btn secondary" id="web-pixabay" target="_blank" rel="noopener" href="#">${icon('search')} Pixabay ↗</a>
+          </div>
+          <ol class="howto small">
+            <li>Passendes Bild anklicken, damit es groß angezeigt wird.</li>
+            <li>Rechtsklick → <strong>„Bild kopieren“</strong> (iPhone/iPad: Bild lange drücken → <strong>Kopieren</strong>).</li>
+            <li>Hierher zurück und unten einfügen.</li>
+          </ol>
+          <div class="paste-zone" id="paste-zone" contenteditable="true" role="textbox" aria-label="Kopiertes Bild hier einfügen"
+            data-placeholder="Hier einfügen: Strg+V (Mac: ⌘+V) oder lange tippen → Einsetzen"></div>
+          <p class="muted small">Achte bei Bildern aus Google auf die Rechte. Eingefügte Bilder bleiben auf deinem Gerät und werden mit dem Teilen-Link nicht mitgeschickt.</p>
+        </section>
+        <div class="own-side">
+          <label class="drop" for="own-file">
+            ${icon('upload', 'big')}
+            <strong>Foto auswählen oder aufnehmen</strong>
+            <small>Vom Gerät oder mit der Kamera.</small>
+            <input id="own-file" type="file" accept="image/*">
+          </label>
+          <form class="own-url" id="own-url">
+            <label class="field" for="own-url-input"><span class="label">Oder Bild-Adresse</span>
+              <input id="own-url-input" type="url" placeholder="https://…/bild.jpg"></label>
+            <button class="btn secondary" type="submit">Übernehmen</button>
+          </form>
+        </div>
       </div>`;
+    const setLinks = () => {
+      const q = ($('#web-q')?.value || '').trim();
+      const g = $('#web-google'), px = $('#web-pixabay');
+      if (g) g.href = `https://www.google.com/search?udm=2&q=${encodeURIComponent(q)}`;
+      if (px) px.href = `https://pixabay.com/de/images/search/${encodeURIComponent(q)}/`;
+    };
+    $('#web-q').addEventListener('input', setLinks);
+    setLinks();
     $('#own-file').addEventListener('change', async (e) => {
       const f = e.target.files?.[0];
       if (f) await useOwnFile(set, word, f);
     });
     $('#own-url').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const url = $('#own-url-input').value.trim();
-      if (!/^https?:\/\//i.test(url)) { toast('Bitte eine Adresse eingeben, die mit https:// beginnt.', 'bad'); return; }
-      const ok = await loadImage(url, 15000);
-      if (!ok) { toast('Dieses Bild lässt sich nicht laden. Kopiere die Adresse des Bildes selbst (Rechtsklick → Bildadresse kopieren).', 'bad'); return; }
-      choosePic(set, word, { kind: 'url', src: url, credit: { text: new URL(url).hostname, url } });
-      toast('Bild übernommen.');
+      await useImageUrl(set, word, $('#own-url-input').value.trim());
     });
   }
 }
@@ -727,11 +761,11 @@ function reviewRowHTML(set, w) {
   ui.reviewList = ui.reviewList || {};
   ui.reviewList[w.id] = list;
   const curSrc = effectivePic(w, set.lang)?.src;
-  const label = { picto: 'Piktogramm', emoji: 'Emoji', photo: 'Foto', ai: 'KI-Bild', upload: 'eigenes Bild', drawn: 'Zeichnung', url: 'Bild', color: 'Farbe', number: 'Zahl' };
+  const label = { picto: 'Piktogramm', clipart: 'Clipart', emoji: 'Emoji', photo: 'Foto', upload: 'eigenes Bild', drawn: 'Zeichnung', url: 'Bild', color: 'Farbe', number: 'Zahl' };
   return `<div class="rrow-word"><strong lang="${set.lang}">${esc(w.foreign)}</strong><small lang="de">${esc(w.german)}</small></div>
     <div class="rrow-cands">
       ${cands ? '' : '<span class="rcand loading"><span class="spinner"></span></span>'}
-      ${list.map((c, i) => `<button type="button" class="rcand ${c.kind === 'picto' ? 'picto' : ''} ${cur?.kind !== 'none' && c.src === curSrc ? 'chosen' : ''}" data-action="review-pick" data-wid="${w.id}" data-i="${i}" title="${esc(label[c.kind] || '')}${c.title ? ': ' + esc(c.title) : ''}" aria-label="${esc(label[c.kind] || 'Bild')} wählen">${candPicHTML(c)}</button>`).join('')}
+      ${list.map((c, i) => `<button type="button" class="rcand ${c.kind === 'picto' || c.kind === 'clipart' ? 'picto' : ''} ${cur?.kind !== 'none' && c.src === curSrc ? 'chosen' : ''}" data-action="review-pick" data-wid="${w.id}" data-i="${i}" title="${esc(label[c.kind] || '')}${c.title ? ': ' + esc(c.title) : ''}" aria-label="${esc(label[c.kind] || 'Bild')} wählen">${candPicHTML(c)}</button>`).join('')}
       <button type="button" class="rcand text ${cur?.kind === 'none' ? 'chosen' : ''}" data-action="review-none" data-wid="${w.id}">${icon('x')}<span>Kein Bild</span></button>
       <button type="button" class="rcand text" data-action="pic-dialog" data-wid="${w.id}">${icon('search')}<span>Mehr …</span></button>
     </div>`;
@@ -750,12 +784,13 @@ async function loadReview(set) {
       const w = queue[i++];
       if (ui.view !== 'pics') return;
       const noun = isNounish(w, set.lang);
-      const [pictos, photo] = await Promise.all([
-        pictoCandidates(w, set.lang, 5).catch(() => []),
+      const [pictos, cliparts, photo] = await Promise.all([
+        pictoCandidates(w, set.lang, 4).catch(() => []),
+        clipartCandidates(w, set.lang, 3).catch(() => []),
         noun ? photoPicture(w, set.lang).catch(() => null) : null,
       ]);
       const local = localPicture(w, set.lang);
-      const list = [...pictos];
+      const list = [...pictos, ...cliparts];
       if (local) list.push(local);
       if (photo) list.push(photo);
       const seen = new Set();
@@ -780,15 +815,32 @@ async function useOwnFile(set, word, file) {
   } catch { toast('Das Bild konnte nicht gelesen werden.', 'bad'); }
 }
 
+async function useImageUrl(set, word, url) {
+  if (!/^https?:\/\//i.test(url)) { toast('Bitte eine Adresse eingeben, die mit https:// beginnt.', 'bad'); return; }
+  const ok = await loadImage(url, 15000);
+  if (!ok) { toast('Dieses Bild lässt sich nicht laden. Kopiere besser das Bild selbst (Rechtsklick → Bild kopieren) und füge es ein.', 'bad'); return; }
+  choosePic(set, word, { kind: 'url', src: url, credit: { text: new URL(url).hostname, url } });
+  toast('Bild übernommen.');
+}
+
 document.addEventListener('paste', (e) => {
   if (!ui.modal?.wid) return;
-  const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
-  if (!item) return;
-  e.preventDefault();
   const set = currentSet();
   const word = set?.words.find((w) => w.id === ui.modal.wid);
-  if (set && word) useOwnFile(set, word, item.getAsFile());
+  if (!set || !word) return;
+  const items = [...(e.clipboardData?.items || [])];
+  const file = items.find((i) => i.type.startsWith('image/'))?.getAsFile()
+    || [...(e.clipboardData?.files || [])].find((f) => f.type.startsWith('image/'));
+  if (file) { e.preventDefault(); useOwnFile(set, word, file); clearPasteZone(); return; }
+  // Kein Bild, aber eine Bild-Adresse oder ein kopiertes <img>?
+  const html = e.clipboardData?.getData('text/html') || '';
+  const text = (e.clipboardData?.getData('text/plain') || '').trim();
+  const src = (html.match(/<img[^>]+src="(https?:[^"]+)"/i) || [])[1] || (/^https?:\/\/\S+$/i.test(text) ? text : '');
+  const inField = e.target.closest?.('input, textarea');
+  if (src && (!inField || e.target.id === 'own-url-input')) { e.preventDefault(); useImageUrl(set, word, src.replace(/&amp;/g, '&')); clearPasteZone(); return; }
+  if (e.target.id === 'paste-zone') { e.preventDefault(); toast('In der Zwischenablage ist kein Bild. Kopiere zuerst ein Bild (Rechtsklick → Bild kopieren).', 'bad'); }
 });
+function clearPasteZone() { const z = $('#paste-zone'); if (z) z.innerHTML = ''; }
 
 /* ---------------- Claude zeichnet (nur in claude.ai-Artifacts verfügbar) ---------------- */
 let claudeSample = null;

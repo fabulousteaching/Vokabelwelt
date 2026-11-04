@@ -342,7 +342,11 @@ function loadDB() {
     if (!db.settings.speechLevelChosen) db.settings.speechLevel = 'medium';
     db.sets = (db.sets || []).filter((s) => s && Array.isArray(s.words));
     db.sets.forEach((s) => {
-      s.words.forEach((w) => { if (w.picStatus === 'pending') w.picStatus = 'stale'; });
+      s.words.forEach((w) => {
+        if (w.picStatus === 'pending') w.picStatus = 'stale';
+        if (w.pic && w.pic.kind === 'ai') { w.pic = null; w.picStatus = 'stale'; } // KI-Bilder gibt es nicht mehr
+      });
+      if (s.picStyle === 'ai') s.picStyle = 'picto';
       // Ältere Portionen: Fotos waren Standard. Jetzt sind Piktogramme Standard (eindeutiger).
       if (!s.picVersion) {
         s.picVersion = 2;
@@ -463,7 +467,7 @@ function isNounish(word, lang) {
 }
 
 /* --- Wikipedia / Wikimedia (CORS mit origin=*) --- */
-const net = { wikiDown: false, aiDown: false, aiFails: 0, arasaacDown: false, arasaacBase: 0 };
+const net = { wikiDown: false, arasaacDown: false, arasaacBase: 0, clipartDown: false, openverseDown: false, openverseBusy: false };
 const wikiCache = new Map();
 const BAD_IMAGE = /(map|karte|locator|location|flag|flagge|logo|wappen|coat[_ ]of[_ ]arms|blason|diagram|signature|unterschrift|icon|symbol|disambig|commons-logo|question_book|ambox)/i;
 
@@ -555,7 +559,7 @@ async function photoPicture(word, lang) {
   return null;
 }
 
-/** Englischer Begriff für die KI-Bildbeschreibung */
+/** Englischer Begriff (für Clipart- und Openverse-Suche, die vor allem englisch beschriftet sind) */
 async function englishTerm(word, lang) {
   const fo = core(word.foreign, lang);
   if (lang === 'en') return fo;
@@ -629,13 +633,76 @@ async function pictoSearch(query, lang) {
   return [...a, ...b, ...c].filter((x) => (seen.has(x._id) ? false : seen.add(x._id))).slice(0, 24).map(toPicto);
 }
 
-/* --- KI-Illustrationen (Pollinations, ohne Schlüssel) --- */
-const AI_STYLE = "cute colorful children's book illustration, one single object in the center, plain white background, soft shading, friendly, high quality, no text, no letters";
-function aiUrl(subject, seed) {
-  const prompt = `${subject}, ${AI_STYLE}`;
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true&safe=true&model=flux`;
+/* --- Cliparts: farbige, offene Emoji- und Clipart-Sammlungen über Iconify (ohne Anmeldung) --- */
+const CLIPART_SETS = {
+  'fluent-emoji': 'Microsoft Fluent Emoji (MIT)',
+  'fluent-emoji-flat': 'Microsoft Fluent Emoji (MIT)',
+  noto: 'Google Noto Emoji (Apache 2.0)',
+  twemoji: 'Twemoji (CC BY 4.0)',
+  openmoji: 'OpenMoji (CC BY-SA 4.0)',
+  'flat-color-icons': 'Flat Color Icons (MIT)',
+  'streamline-emojis': 'Streamline Emojis (CC BY 4.0)',
+  fxemoji: 'Firefox OS Emoji (CC BY 4.0)',
+  emojione: 'EmojiOne (CC BY 4.0)',
+};
+const clipartCache = new Map();
+
+async function clipartSearch(query, limit = 24) {
+  query = String(query || '').trim().toLowerCase();
+  if (!query || net.clipartDown) return [];
+  const key = `${query}|${limit}`;
+  if (clipartCache.has(key)) return clipartCache.get(key);
+  const order = Object.keys(CLIPART_SETS);
+  const p = (async () => {
+    const qs = new URLSearchParams({ query, limit: '96', prefixes: order.join(',') });
+    try {
+      const data = await fetchJSON(`https://api.iconify.design/search?${qs}`);
+      const names = (data?.icons || []).map(String).filter((n) => order.includes(n.split(':')[0]));
+      // Relevanz behalten, aber die schönsten Sammlungen leicht bevorzugen
+      const ranked = names.map((n, i) => [i + order.indexOf(n.split(':')[0]) * 2, n]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+      return ranked.slice(0, limit).map((n) => {
+        const [prefix, name] = n.split(':');
+        return { kind: 'clipart', src: `https://api.iconify.design/${prefix}/${name}.svg`, title: name.replace(/-/g, ' '),
+          credit: { text: `Clipart: ${CLIPART_SETS[prefix]}`, url: `https://icon-sets.iconify.design/${prefix}/${name}/` } };
+      });
+    } catch (e) {
+      if (e instanceof TypeError || e.name === 'AbortError') net.clipartDown = true;
+      clipartCache.delete(key);
+      return [];
+    }
+  })();
+  clipartCache.set(key, p);
+  return p;
 }
-function loadImage(src, timeout = 60000) {
+
+async function clipartCandidates(word, lang, limit = 6) {
+  const term = await englishTerm(word, lang);
+  let list = await clipartSearch(term, limit);
+  if (!list.length && term.includes(' ')) list = await clipartSearch(term.split(' ').pop(), limit);
+  return list;
+}
+
+/* --- Openverse: über 800 Millionen frei lizenzierte Fotos und Zeichnungen (ohne Anmeldung) --- */
+async function openverseSearch(query, category = '') {
+  query = String(query || '').trim();
+  if (!query || net.openverseDown) return [];
+  net.openverseBusy = false;
+  const qs = new URLSearchParams({ q: query, page_size: '20', mature: 'false' });
+  if (category) qs.set('category', category);
+  try {
+    const data = await fetchJSON(`https://api.openverse.org/v1/images/?${qs}`, 12000);
+    return (data?.results || []).filter((r) => r && (r.thumbnail || r.url)).map((r) => ({
+      kind: 'photo', src: r.thumbnail || r.url, title: r.title || '',
+      credit: { text: `${r.creator || 'Openverse'} (${String(r.license || '').toUpperCase()} ${r.license_version || ''})`.replace(/\s+\)/, ')'), url: r.foreign_landing_url || 'https://openverse.org' },
+    }));
+  } catch (e) {
+    if (e instanceof TypeError || e.name === 'AbortError') net.openverseDown = true;
+    else if (/429/.test(String(e.message))) net.openverseBusy = true;
+    return [];
+  }
+}
+
+function loadImage(src, timeout = 30000) {
   return new Promise((resolve) => {
     const img = new Image();
     const timer = setTimeout(() => { img.src = ''; resolve(false); }, timeout);
@@ -643,20 +710,6 @@ function loadImage(src, timeout = 60000) {
     img.onerror = () => { clearTimeout(timer); resolve(false); };
     img.src = src;
   });
-}
-let aiQueue = Promise.resolve();
-function aiPicture(subject, seed) {
-  const job = aiQueue.then(async () => {
-    if (net.aiDown) return null;
-    const src = aiUrl(subject, seed);
-    const ok = await loadImage(src, 75000);
-    if (ok) { net.aiFails = 0; return { kind: 'ai', src, credit: { text: 'KI-Bild (Pollinations)', url: 'https://pollinations.ai' } }; }
-    net.aiFails++;
-    if (net.aiFails >= 2) net.aiDown = true;
-    return null;
-  });
-  aiQueue = job.catch(() => null);
-  return job;
 }
 
 /* --- automatische Bildwahl --- */
@@ -671,10 +724,9 @@ async function autoPicture(word, set) {
   const style = set.picStyle || 'picto';
   if (style === 'emoji') return local || (await picto()) || (await photo());
   if (style === 'photo') return (await photo()) || (await picto()) || local;
-  if (style === 'ai' && !net.aiDown) {
-    const subject = await englishTerm(word, set.lang);
-    const p = await aiPicture(subject, 7 + (word.id.charCodeAt(0) % 50));
-    if (p) return p;
+  if (style === 'clipart') {
+    const c = (await clipartCandidates(word, set.lang, 1))[0];
+    if (c) return c;
   }
   return (await picto()) || local || (await photo());
 }
@@ -701,7 +753,7 @@ async function fillPictures(set, { force = false, onProgress } = {}) {
       onProgress?.(w);
     }
   };
-  await Promise.all(Array.from({ length: set.picStyle === 'ai' ? 1 : 4 }, worker));
+  await Promise.all(Array.from({ length: 4 }, worker));
   picJobs.delete(set.id);
   onProgress?.();
 }
@@ -728,7 +780,7 @@ function picHTML(word, lang, cls = '') {
   if (p.kind === 'emoji') return `<span class="pic pic-emoji ${cls}" role="img" aria-label="${esc(word.german || word.foreign)}"><span>${esc(p.src)}</span></span>`;
   if (p.kind === 'color') return `<span class="pic pic-color ${cls}" role="img" aria-label="${esc(word.german || word.foreign)}"><span style="--swatch:${esc(p.src)}"></span></span>`;
   if (p.kind === 'number') return `<span class="pic pic-number ${cls}" role="img" aria-label="${esc(p.src)}"><span>${esc(p.src)}</span></span>`;
-  return `<span class="pic pic-img${p.kind === 'picto' ? ' pic-picto' : ''} ${cls}"><img src="${esc(p.src)}" alt="${esc(word.german || word.foreign)}" data-wid="${esc(word.id)}" draggable="false" decoding="async"></span>`;
+  return `<span class="pic pic-img${p.kind === 'picto' || p.kind === 'clipart' ? ' pic-picto' : ''} ${cls}"><img src="${esc(p.src)}" alt="${esc(word.german || word.foreign)}" data-wid="${esc(word.id)}" draggable="false" decoding="async"></span>`;
 }
 
 document.addEventListener('error', (e) => {
@@ -1047,10 +1099,11 @@ async function decodeShare(code) {
   } else json = new TextDecoder().decode(bytes);
   const d = JSON.parse(json);
   return {
-    name: String(d.n || 'Vokabeln'), lang: d.l === 'fr' ? 'fr' : 'en', picStyle: ['picto', 'photo', 'ai', 'emoji'].includes(d.s) ? d.s : 'picto',
+    name: String(d.n || 'Vokabeln'), lang: d.l === 'fr' ? 'fr' : 'en', picStyle: ['picto', 'clipart', 'photo', 'emoji'].includes(d.s) ? d.s : 'picto',
     rows: (d.w || []).map((r) => ({
       foreign: String(r[0] || ''), german: String(r[1] || ''),
-      pic: r[2] === 'none' ? { kind: 'none', src: '', manual: true }
+      pic: r[2] === 'ai' ? null
+        : r[2] === 'none' ? { kind: 'none', src: '', manual: true }
         : r[2] && r[3] ? { kind: String(r[2]), src: String(r[3]), manual: true } : null,
     })),
   };

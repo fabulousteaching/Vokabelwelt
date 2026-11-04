@@ -611,6 +611,16 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); outline: 
 .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .drop small { color: var(--ink-3); }
 .own-url { display: grid; gap: .6rem; align-content: start; }
+.own-side { display: grid; gap: 1rem; align-content: start; }
+.web-search { display: grid; gap: .6rem; align-content: start; padding: 1rem; border-radius: 18px; background: var(--desk); }
+.web-search .row a { text-decoration: none; }
+.howto { margin: 0; padding-left: 1.2rem; color: var(--ink-2); display: grid; gap: .2rem; }
+.paste-zone {
+  min-height: 72px; padding: .8rem 1rem; border: 3px dashed var(--line); border-radius: 14px; background: var(--paper);
+  display: grid; place-items: center; text-align: center; color: var(--ink-3); cursor: text; outline: none;
+}
+.paste-zone:empty::before { content: attr(data-placeholder); }
+.paste-zone:focus { border-color: var(--blue); background: var(--blue-wash); }
 .settings { display: grid; gap: 1rem; }
 .switch { display: flex; align-items: center; gap: .7rem; font-weight: 700; cursor: pointer; }
 .switch input { width: 22px; height: 22px; accent-color: var(--blue); }

@@ -54,7 +54,7 @@ const actions = {
     const set = currentSet();
     const style = el.dataset.style;
     set.picStyle = style;
-    if (style === 'ai') { net.aiDown = false; net.aiFails = 0; }
+    if (style === 'clipart') net.clipartDown = false;
     if (style === 'picto') net.arasaacDown = false;
     if (style === 'photo') net.wikiDown = false;
     saveDB();
@@ -101,6 +101,10 @@ const actions = {
     saveDB(); refreshPicDialogHead(set, w); refreshDeck(set, w);
   },
   'photo-more': () => ui.modal?.photoMore?.(),
+  'photo-cat': (el) => {
+    $$('[data-action="photo-cat"]').forEach((b) => b.setAttribute('aria-pressed', String(b === el)));
+    ui.modal?.photoCat?.(el.dataset.cat);
+  },
   'draw-one': async (el) => {
     const set = currentSet();
     const w = set.words.find((x) => x.id === ui.modal?.wid);
