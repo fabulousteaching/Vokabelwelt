@@ -5,7 +5,10 @@ function startMode(mode, opts = {}) {
   const set = currentSet();
   if (!set) return;
   if (mode === 'cards') startCards(set, opts);
-  if (mode === 'match') startMatch(set, opts.variant || (set.words.some((w) => hasPicture(w, set.lang)) ? 'pic' : 'de'));
+  if (mode === 'match') {
+    if (opts.variant) startMatch(set, opts.variant);
+    else match.choosing = true; // zuerst wählen: Bild ↔ Englisch oder Englisch ↔ Deutsch
+  }
   if (mode === 'speak') startSpeak(set, opts.ids);
   if (mode === 'dictation') startDictation(set, opts.ids);
   if (mode === 'test') startTest(set, opts.ids);

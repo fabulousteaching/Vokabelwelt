@@ -367,8 +367,7 @@ function viewSet(set) {
       ${step(1, 'Lernkarten', 'Karten umdrehen und merken.', info.cards,
         `<button class="btn primary" data-action="mode" data-mode="cards">Karten üben</button>`, !!p.cards, 'stack')}
       ${step(2, 'Zuordnen', 'Verbinde, was zusammengehört.', info.match,
-        `<button class="btn primary" data-action="mode" data-mode="match" data-variant="pic">Bild ↔ ${L}</button>
-         <button class="btn secondary" data-action="mode" data-mode="match" data-variant="de">${L} ↔ Deutsch</button>`, !!p.match, 'link')}
+        `<button class="btn primary" data-action="mode" data-mode="match">Zuordnen üben</button>`, !!p.match, 'link')}
       ${step(3, 'Aussprechen', 'Sag das Wort ins Mikrofon.', info.speak,
         `<button class="btn primary" data-action="mode" data-mode="speak">Aussprache üben</button>`, !!p.speak, 'mic')}
       ${step(4, 'Hören & Schreiben', 'Hör das Wort und schreib es auf.', info.dictation,

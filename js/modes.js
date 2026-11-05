@@ -109,7 +109,7 @@ function renderCards() {
         <div class="row center">
           ${hard.length ? `<button class="btn primary" data-action="cards-again" data-which="hard">${icon('flip')} Die ${hard.length} schwierigen nochmal</button>` : ''}
           <button class="btn ${hard.length ? 'secondary' : 'primary'}" data-action="cards-again" data-which="all">${icon('shuffle')} Alle nochmal</button>
-          <button class="btn secondary" data-action="mode" data-mode="match" data-variant="${anyPic ? 'pic' : 'de'}">Weiter: Zuordnen ${icon('right')}</button>
+          <button class="btn secondary" data-action="mode" data-mode="match">Weiter: Zuordnen ${icon('right')}</button>
         </div>
       </div>
     </section>`;
@@ -233,10 +233,11 @@ function cardAnswer(known) {
 /* =========================================================
    2 · ZUORDNEN
    ========================================================= */
-const match = { variant: 'pic', rounds: [], round: 0, selected: null, done: [], mistakes: 0, total: 0, drag: null, ro: null, finished: false, colors: 0 };
+const match = { variant: 'pic', rounds: [], round: 0, selected: null, done: [], mistakes: 0, total: 0, drag: null, ro: null, finished: false, colors: 0, choosing: false };
 const PAIR_COLORS = 6;
 
 function startMatch(set, variant) {
+  match.choosing = false;
   match.variant = variant;
   const seen = new Set();
   let pool = set.words.filter((w) => {
@@ -264,6 +265,7 @@ function renderMatch() {
   const v = $('#view');
   const L = LANGS[set.lang].name;
   match.ro?.disconnect();
+  if (match.choosing) { renderMatchChoice(set); return; }
   const bar = `
     <div class="mode-bar">
       <h1 class="mode-title">Zuordnen</h1>
@@ -323,6 +325,32 @@ function renderMatch() {
   </section>`;
   match.done = []; match.selected = null;
   bindMatchBoard();
+}
+
+/** Erst wählen, was verbunden wird */
+function renderMatchChoice(set) {
+  const L = LANGS[set.lang].name;
+  const withPic = set.words.filter((w) => w.foreign && hasPicture(w, set.lang));
+  const withDe = set.words.filter((w) => w.foreign && w.german);
+  const sample = (list, fn) => list.slice(0, 2).map(fn).join('');
+  $('#view').innerHTML = `<section class="mode match-mode">
+    <div class="mode-bar"><h1 class="mode-title">Zuordnen</h1></div>
+    <div class="test-card setup choose-card">
+      <h2>Was möchtest du verbinden?</h2>
+      <div class="choose-grid">
+        <button class="choose-tile" data-action="match-variant" data-variant="pic" ${withPic.length >= 2 ? '' : 'disabled'}>
+          <span class="choose-demo" aria-hidden="true">${sample(withPic, (w) => `<span class="cd-row">${picHTML(w, set.lang, 'mini')}<i></i><b lang="en">${esc(w.foreign)}</b></span>`)}</span>
+          <strong>${icon('image')} Bild ↔ ${L}</strong>
+          <small>${withPic.length >= 2 ? `Verbinde jedes Bild mit dem englischen Wort.` : 'Dafür brauchen mindestens zwei Karten ein Bild.'}</small>
+        </button>
+        <button class="choose-tile" data-action="match-variant" data-variant="de" ${withDe.length >= 2 ? '' : 'disabled'}>
+          <span class="choose-demo" aria-hidden="true">${sample(withDe, (w) => `<span class="cd-row"><b lang="en">${esc(w.foreign)}</b><i></i><b lang="de">${esc(w.german)}</b></span>`)}</span>
+          <strong>${icon('link')} ${L} ↔ Deutsch</strong>
+          <small>${withDe.length >= 2 ? 'Verbinde das englische mit dem deutschen Wort.' : 'Dafür brauchen mindestens zwei Karten eine Übersetzung.'}</small>
+        </button>
+      </div>
+    </div>
+  </section>`;
 }
 
 function bindMatchBoard() {
