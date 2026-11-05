@@ -2,7 +2,7 @@
 
 Ein Vokabelspiel für Englisch. Vokabeln einfügen, und daraus werden:
 
-1. **Lernkarten** mit Bild: Antippen dreht die Karte um. Dann nach rechts wischen = gewusst, nach links = nochmal (oder die Knöpfe darunter, am Computer auch die Pfeiltasten). Vorne steht wahlweise das Bild, Bild + Wort, das englische Wort oder das deutsche Wort. Als Stapel oder alle Karten auf einmal.
+1. **Lernkarten** mit Bild: Antippen dreht die Karte um. Dann nach rechts wischen = gewusst, nach links = nochmal (oder die Knöpfe darunter, am Computer auch die Pfeiltasten). Wählbar: Englisch → Deutsch, Deutsch → Englisch, Bild oder Bild + Wort. Auf jeder Kartenseite steht das Wort nur in einer Sprache; Anhören gibt es auf der englischen Seite. Beim Wischen färbt sich die Karte grün (gewusst) oder orange (nochmal). Als Stapel oder alle Karten auf einmal.
 2. **Zuordnen**: Bild ↔ Englisch oder Englisch ↔ Deutsch. Antippen oder eine Linie ziehen.
 3. **Aussprechen**: Wort oder Bild wird gezeigt, das Kind spricht ins Mikrofon. Ist es richtig, wird es grün und das nächste Wort kommt automatisch. Wenn nicht, kann es sich die richtige Aussprache anhören (auch langsam) und es nochmal versuchen. Es zählt nur, was die Spracherkennung am wahrscheinlichsten verstanden hat, und das muss das Wort sein („Brad“ oder „bird“ statt „bread“ ist falsch). Die Mehrzahl ist ok, bei langen Wörtern darf ein Laut abweichen.
 4. **Hören & Schreiben** (Diktat als Übung): Das Wort wird vorgelesen (auch langsam), das Kind schreibt es. Auf Wunsch zeigt ein Tipp die deutsche Bedeutung. Falsche Wörter kommen etwas später nochmal dran.

@@ -171,7 +171,12 @@ const actions = {
   /* Lernkarten */
   flip: (el) => {
     if (cards.justSwiped) return; // nach dem Wischen nicht auch noch umdrehen
-    if (el.closest('.flash-grid')) { el.classList.toggle('is-flipped'); sfx.flip(); if (el.classList.contains('is-flipped') && db.settings.autoSpeak) { const set = currentSet(); const w = set.words.find((x) => x.id === el.dataset.wid); if (w) speak(w.foreign, set.lang); } return; }
+    if (el.closest('.flash-grid')) {
+      el.classList.toggle('is-flipped'); sfx.flip();
+      const set = currentSet(), w = set.words.find((x) => x.id === el.dataset.wid);
+      if (w && db.settings.autoSpeak && englishShowing(set, w, el.classList.contains('is-flipped'))) speak(w.foreign, set.lang); else stopSpeaking();
+      return;
+    }
     flipCurrent();
   },
   'flip-current': () => flipCurrent(),

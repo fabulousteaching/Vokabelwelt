@@ -116,6 +116,7 @@ function stopModes() {
   stopMeter();
   stopSpeaking();
   clearTimeout(speakM?.timer);
+  clearTimeout(cards?.speakTimer);
   clearTimeout(test?.timer);
   clearTimeout(dict?.timer);
   match?.ro?.disconnect();

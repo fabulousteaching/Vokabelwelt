@@ -467,13 +467,15 @@ input:focus, textarea:focus, select:focus { border-color: var(--brand); outline:
 .flash.swipeable { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; transition: transform .25s cubic-bezier(.2, .8, .25, 1), opacity .23s ease; animation: card-in .25s ease; }
 .flash.swipeable.dragging { transition: none; cursor: grabbing; }
 @keyframes card-in { from { transform: scale(.94); opacity: 0; } }
-.swipe-tag {
-  position: absolute; top: 14px; z-index: 3; display: inline-flex; align-items: center; gap: .35rem; pointer-events: none;
-  padding: .35rem .85rem; border-radius: 12px; border: 3px solid; background: var(--paper); font-weight: 700; font-size: 1.05rem;
-  opacity: 0; transition: opacity .1s;
+.swipe-tint {
+  position: absolute; inset: 0; z-index: 3; display: grid; place-items: start center; padding-top: 14%; border-radius: 28px; pointer-events: none;
+  color: #fff; font-family: var(--font-display); font-weight: 800; font-size: clamp(1.6rem, 9cqi, 2.4rem);
+  opacity: 0; transition: opacity .08s;
 }
-.swipe-tag.ok { right: 14px; color: var(--green); border-color: var(--green); transform: rotate(8deg); }
-.swipe-tag.again { left: 14px; color: var(--orange); border-color: var(--orange); transform: rotate(-8deg); }
+.swipe-tint span { display: inline-flex; align-items: center; gap: .5rem; }
+.swipe-tint .icon { width: 1.1em; height: 1.1em; stroke-width: 3; }
+.swipe-tint.ok { background: #0E9F6E; }
+.swipe-tint.again { background: #E8730C; }
 .card-actions .btn { min-width: 160px; }
 .flash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 16px; perspective: 1600px; }
 .flash.mini { width: 100%; max-height: none; aspect-ratio: 3 / 4; border-radius: 22px; }

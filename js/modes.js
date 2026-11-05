@@ -37,23 +37,24 @@ function resetCards(mix = true, ids) {
   cards.finished = false;
 }
 
+/** Die zwei Seiten einer Karte: Auf jeder Seite steht das Wort nur in einer Sprache.
+ *  Anhören gibt es nur auf der englischen Seite. englishBack: Ist die Rückseite englisch? */
 function cardFaces(set, w, front) {
   const L = LANGS[set.lang].name;
   const pic = hasPicture(w, set.lang);
   const f = (front === 'pic' || front === 'picword') && !pic ? 'foreign' : front;
-  const foreignBlock = (big) => `<p class="cw-foreign ${big ? 'xl' : ''}" lang="${set.lang}">${esc(w.foreign)}</p>`;
-  let frontHTML;
-  if (f === 'pic') frontHTML = `<p class="face-label">Wie heißt das auf ${L}?</p>${picHTML(w, set.lang, 'card-pic')}`;
-  else if (f === 'picword') frontHTML = `<p class="face-label">${L}</p>${picHTML(w, set.lang, 'card-pic')}<div class="cw-line">${foreignBlock(false)}${sayBtn(w.foreign, set.lang)}</div>`;
-  else if (f === 'foreign') frontHTML = `<p class="face-label">${L}</p><div class="cw-line">${foreignBlock(true)}${sayBtn(w.foreign, set.lang)}</div>`;
-  else frontHTML = `<p class="face-label">Deutsch</p><p class="cw-german xl" lang="de">${esc(w.german || '–')}</p>`;
-
-  const backHTML = `<p class="face-label">Lösung</p>
-    ${pic && f !== 'pic' && f !== 'picword' ? picHTML(w, set.lang, 'card-pic small') : ''}
-    <div class="cw-line">${foreignBlock(f === 'german' || f === 'pic')}${sayBtn(w.foreign, set.lang)}</div>
-    <p class="cw-german ${f === 'german' || f === 'pic' ? '' : 'xl'}" lang="de">${esc(w.german || '')}</p>`;
-  return { frontHTML, backHTML };
+  const label = (t) => `<p class="face-label">${t}</p>`;
+  const en = (big) => `<div class="cw-line"><p class="cw-foreign ${big ? 'xl' : ''}" lang="${set.lang}">${esc(w.foreign)}</p>${sayBtn(w.foreign, set.lang)}</div>`;
+  const de = `<p class="cw-german xl" lang="de">${esc(w.german || '–')}</p>`;
+  const bigPic = picHTML(w, set.lang, 'card-pic');
+  const smallPic = pic ? picHTML(w, set.lang, 'card-pic small') : '';
+  if (f === 'pic') return { frontHTML: label(`Wie heißt das auf ${L}?`) + bigPic, backHTML: label(L) + en(true), englishBack: true };
+  if (f === 'picword') return { frontHTML: label(L) + bigPic + en(false), backHTML: label('Deutsch') + de, englishBack: false };
+  if (f === 'german') return { frontHTML: label('Deutsch') + de, backHTML: label(L) + smallPic + en(true), englishBack: true };
+  return { frontHTML: label(L) + en(true), backHTML: label('Deutsch') + smallPic + de, englishBack: false };
 }
+/** Ist gerade die englische Seite zu sehen? (dann wird vorgelesen) */
+const englishShowing = (set, w, flipped) => cardFaces(set, w, cards.front).englishBack === !!flipped;
 
 function flashHTML(set, w, { flipped = false, mini = false } = {}) {
   const { frontHTML, backHTML } = cardFaces(set, w, cards.front);
@@ -62,7 +63,7 @@ function flashHTML(set, w, { flipped = false, mini = false } = {}) {
       <div class="face front">${frontHTML}</div>
       <div class="face back">${backHTML}</div>
     </div>
-    ${mini ? '' : `<span class="swipe-tag again" aria-hidden="true">${icon('flip')} Nochmal</span><span class="swipe-tag ok" aria-hidden="true">${icon('check')} Gewusst</span>`}
+    ${mini ? '' : `<span class="swipe-tint again" aria-hidden="true"><span>${icon('flip')} Nochmal</span></span><span class="swipe-tint ok" aria-hidden="true"><span>${icon('check')} Gewusst</span></span>`}
   </div>`;
 }
 
@@ -71,7 +72,7 @@ function renderCards() {
   const v = $('#view');
   const L = LANGS[set.lang].name;
   const anyPic = set.words.some((w) => hasPicture(w, set.lang));
-  const fronts = [['pic', 'Bild'], ['picword', 'Bild + Wort'], ['foreign', `${L} → Deutsch`], ['german', `Deutsch → ${L}`]]
+  const fronts = [['foreign', `${L} → Deutsch`], ['german', `Deutsch → ${L}`], ['pic', 'Bild'], ['picword', 'Bild + Wort']]
     .filter(([k]) => anyPic || (k !== 'pic' && k !== 'picword'));
   const bar = `
     <div class="mode-bar">
@@ -128,16 +129,21 @@ function renderCards() {
     <p class="mode-hint keys">Leertaste: umdrehen · <kbd>←</kbd> nochmal · <kbd>→</kbd> gewusst</p>
   </section>`;
   bindSwipe();
+  // Ist vorne Englisch, wird das Wort gleich vorgelesen
+  if (db.settings.autoSpeak && !cards.flipped && englishShowing(set, w, false)) {
+    clearTimeout(cards.speakTimer);
+    cards.speakTimer = setTimeout(() => { if (ui.view === 'cards' && cards.queue[0] === w.id && !cards.flipped) speak(w.foreign, set.lang); }, 350);
+  }
 }
 
 /* Wischen: nach rechts = gewusst, nach links = nochmal. Antippen dreht die Karte um. */
 function bindSwipe() {
   const el = $('.stage .flash.swipeable');
   if (!el) return;
-  const tagOk = $('.swipe-tag.ok', el), tagAgain = $('.swipe-tag.again', el);
+  const tagOk = $('.swipe-tint.ok', el), tagAgain = $('.swipe-tint.again', el);
   let d = null;
   const setTags = (dx) => {
-    const k = Math.min(1, Math.abs(dx) / 110);
+    const k = Math.min(0.94, Math.abs(dx) / 85);
     tagOk.style.opacity = dx > 0 ? k : 0;
     tagAgain.style.opacity = dx < 0 ? k : 0;
   };
@@ -178,8 +184,8 @@ function flyCard(known) {
   const el = $('.stage .flash.swipeable');
   if (!el || el.classList.contains('flying')) { if (!el) cardAnswer(known); return; }
   el.classList.add('flying');
-  const tag = $(`.swipe-tag.${known ? 'ok' : 'again'}`, el);
-  if (tag) tag.style.opacity = 1;
+  const tag = $(`.swipe-tint.${known ? 'ok' : 'again'}`, el);
+  if (tag) tag.style.opacity = 0.92;
   el.style.transform = `translateX(${known ? 130 : -130}%) rotate(${known ? 16 : -16}deg)`;
   el.style.opacity = '0';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -199,10 +205,9 @@ function flipCurrent() {
   el.classList.toggle('is-flipped', cards.flipped);
   sfx.flip();
   $('#card-actions').innerHTML = cardActions();
-  if (cards.flipped && db.settings.autoSpeak) {
-    const w = set.words.find((x) => x.id === cards.queue[0]);
-    if (w) speak(w.foreign, set.lang);
-  }
+  const w = set.words.find((x) => x.id === cards.queue[0]);
+  if (w && db.settings.autoSpeak && englishShowing(set, w, cards.flipped)) speak(w.foreign, set.lang);
+  else stopSpeaking();
 }
 
 function cardAnswer(known) {
