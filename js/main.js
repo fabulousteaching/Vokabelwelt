@@ -170,12 +170,13 @@ const actions = {
 
   /* Lernkarten */
   flip: (el) => {
+    if (cards.justSwiped) return; // nach dem Wischen nicht auch noch umdrehen
     if (el.closest('.flash-grid')) { el.classList.toggle('is-flipped'); sfx.flip(); if (el.classList.contains('is-flipped') && db.settings.autoSpeak) { const set = currentSet(); const w = set.words.find((x) => x.id === el.dataset.wid); if (w) speak(w.foreign, set.lang); } return; }
     flipCurrent();
   },
   'flip-current': () => flipCurrent(),
-  'card-known': () => cardAnswer(true),
-  'card-again': () => cardAnswer(false),
+  'card-known': () => flyCard(true),
+  'card-again': () => flyCard(false),
   'card-front': (el) => { cards.front = el.dataset.front; db.settings.cardFront = cards.front; saveDB(); cards.flipped = false; renderCards(); },
   'card-layout': (el) => { cards.layout = el.dataset.layout; cards.flipped = false; renderCards(); },
   'cards-again': (el) => {
@@ -356,7 +357,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === ' ' || e.key === 'Enter') {
       if (e.target.closest('button:not(.flash)') && e.key === 'Enter') return;
       e.preventDefault(); flipCurrent();
-    } else if (e.key === 'ArrowRight') { e.preventDefault(); cardAnswer(true); } else if (e.key === 'ArrowLeft') { e.preventDefault(); cardAnswer(false); }
+    } else if (e.key === 'ArrowRight') { e.preventDefault(); flyCard(true); } else if (e.key === 'ArrowLeft') { e.preventDefault(); flyCard(false); }
   } else if (ui.view === 'cards' && cards.layout === 'grid' && (e.key === ' ' || e.key === 'Enter') && e.target.classList?.contains('flash')) {
     e.preventDefault(); actions.flip(e.target);
   } else if (ui.view === 'test' && test.phase === 'q' && !typing) {

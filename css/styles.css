@@ -459,6 +459,21 @@ input:focus, textarea:focus, select:focus { border-color: var(--brand); outline:
 .face .cw-foreign { font-size: clamp(1.15rem, 7cqi, 1.9rem); }
 .face .cw-german { font-size: clamp(1rem, 5.5cqi, 1.4rem); }
 .card-actions { display: flex; justify-content: center; gap: .8rem; flex-wrap: wrap; }
+.cards-mode { overflow-x: clip; }
+.card-howto { text-align: center; color: var(--ink-2); font-size: .92rem; text-wrap: balance; }
+.card-howto b { font-weight: 600; white-space: nowrap; }
+.card-howto b.ok { color: var(--green); }
+.card-howto b.again { color: var(--orange); }
+.flash.swipeable { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; transition: transform .25s cubic-bezier(.2, .8, .25, 1), opacity .23s ease; animation: card-in .25s ease; }
+.flash.swipeable.dragging { transition: none; cursor: grabbing; }
+@keyframes card-in { from { transform: scale(.94); opacity: 0; } }
+.swipe-tag {
+  position: absolute; top: 14px; z-index: 3; display: inline-flex; align-items: center; gap: .35rem; pointer-events: none;
+  padding: .35rem .85rem; border-radius: 12px; border: 3px solid; background: var(--paper); font-weight: 700; font-size: 1.05rem;
+  opacity: 0; transition: opacity .1s;
+}
+.swipe-tag.ok { right: 14px; color: var(--green); border-color: var(--green); transform: rotate(8deg); }
+.swipe-tag.again { left: 14px; color: var(--orange); border-color: var(--orange); transform: rotate(-8deg); }
 .card-actions .btn { min-width: 160px; }
 .flash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 16px; perspective: 1600px; }
 .flash.mini { width: 100%; max-height: none; aspect-ratio: 3 / 4; border-radius: 22px; }
@@ -788,6 +803,16 @@ input[type="range"] { accent-color: var(--brand); width: 100%; }
   .rv-answer { grid-column: 2; }
 }
 @media (max-width: 380px) { .brand-name { display: none; } }
+@media (max-width: 560px) {
+  .cards-mode { gap: 10px; }
+  .cards-mode .mode-bar { gap: .5rem; }
+  .cards-mode .mode-title { font-size: 1.5rem; }
+  .cards-mode .label-inline { display: none; }
+  .cards-mode .mode-controls { gap: .4rem; }
+  .cards-mode .seg.small .seg-btn { min-height: 32px; padding: .22rem .6rem; font-size: .84rem; }
+  .cards-mode .card-howto { font-size: .84rem; }
+  .stage .flash { min-height: 300px; max-height: 56vh; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

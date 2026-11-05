@@ -57,11 +57,12 @@ function cardFaces(set, w, front) {
 
 function flashHTML(set, w, { flipped = false, mini = false } = {}) {
   const { frontHTML, backHTML } = cardFaces(set, w, cards.front);
-  return `<div class="flash ${mini ? 'mini' : ''} ${flipped ? 'is-flipped' : ''}" data-action="flip" data-wid="${w.id}" role="button" tabindex="0" aria-label="Karte umdrehen">
+  return `<div class="flash ${mini ? 'mini' : 'swipeable'} ${flipped ? 'is-flipped' : ''}" data-action="flip" data-wid="${w.id}" role="button" tabindex="0" aria-label="Karte umdrehen">
     <div class="flash-inner">
       <div class="face front">${frontHTML}</div>
       <div class="face back">${backHTML}</div>
     </div>
+    ${mini ? '' : `<span class="swipe-tag again" aria-hidden="true">${icon('flip')} Nochmal</span><span class="swipe-tag ok" aria-hidden="true">${icon('check')} Gewusst</span>`}
   </div>`;
 }
 
@@ -70,7 +71,7 @@ function renderCards() {
   const v = $('#view');
   const L = LANGS[set.lang].name;
   const anyPic = set.words.some((w) => hasPicture(w, set.lang));
-  const fronts = [['pic', 'Bild'], ['picword', 'Bild + Wort'], ['foreign', L], ['german', 'Deutsch']]
+  const fronts = [['pic', 'Bild'], ['picword', 'Bild + Wort'], ['foreign', `${L} → Deutsch`], ['german', `Deutsch → ${L}`]]
     .filter(([k]) => anyPic || (k !== 'pic' && k !== 'picword'));
   const bar = `
     <div class="mode-bar">
@@ -121,16 +122,73 @@ function renderCards() {
   v.innerHTML = `<section class="mode cards-mode">${bar}
     ${progressBar(done / cards.total, 'Fortschritt')}
     <p class="progress-label"><span>Noch ${cards.queue.length} ${cards.queue.length === 1 ? 'Karte' : 'Karten'}</span><span class="tally"><b class="ok">${icon('check')} ${cards.known}</b><b class="again">${icon('flip')} ${again}</b></span></p>
+    <p class="card-howto">Tippe auf die Karte, um sie umzudrehen. Dann wischen: <b class="ok">rechts = gewusst</b>, <b class="again">links = nochmal</b>.</p>
     <div class="stage">${flashHTML(set, w, { flipped: cards.flipped })}</div>
     <div class="card-actions" id="card-actions">${cardActions()}</div>
     <p class="mode-hint keys">Leertaste: umdrehen · <kbd>←</kbd> nochmal · <kbd>→</kbd> gewusst</p>
   </section>`;
+  bindSwipe();
+}
+
+/* Wischen: nach rechts = gewusst, nach links = nochmal. Antippen dreht die Karte um. */
+function bindSwipe() {
+  const el = $('.stage .flash.swipeable');
+  if (!el) return;
+  const tagOk = $('.swipe-tag.ok', el), tagAgain = $('.swipe-tag.again', el);
+  let d = null;
+  const setTags = (dx) => {
+    const k = Math.min(1, Math.abs(dx) / 110);
+    tagOk.style.opacity = dx > 0 ? k : 0;
+    tagAgain.style.opacity = dx < 0 ? k : 0;
+  };
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button > 0 || e.target.closest('.say')) return;
+    d = { x0: e.clientX, y0: e.clientY, dx: 0, id: e.pointerId, moving: false };
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!d || e.pointerId !== d.id) return;
+    const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+    if (!d.moving) {
+      if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) return;
+      d.moving = true;
+      try { el.setPointerCapture(e.pointerId); } catch { /* */ }
+      el.classList.add('dragging');
+    }
+    d.dx = dx;
+    el.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+    setTags(dx);
+  });
+  const end = (e) => {
+    if (!d || e.pointerId !== d.id) return;
+    const { dx, moving } = d;
+    d = null;
+    if (!moving) return; // Antippen: der Klick dreht die Karte um
+    cards.justSwiped = true;
+    setTimeout(() => { cards.justSwiped = false; }, 350);
+    el.classList.remove('dragging');
+    if (Math.abs(dx) > Math.min(110, el.offsetWidth * 0.28)) flyCard(dx > 0);
+    else { el.style.transform = ''; setTags(0); }
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+}
+
+/** Karte hinauswerfen (Wischen, Knöpfe, Pfeiltasten) und dann werten */
+function flyCard(known) {
+  const el = $('.stage .flash.swipeable');
+  if (!el || el.classList.contains('flying')) { if (!el) cardAnswer(known); return; }
+  el.classList.add('flying');
+  const tag = $(`.swipe-tag.${known ? 'ok' : 'again'}`, el);
+  if (tag) tag.style.opacity = 1;
+  el.style.transform = `translateX(${known ? 130 : -130}%) rotate(${known ? 16 : -16}deg)`;
+  el.style.opacity = '0';
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(() => { if (ui.view === 'cards') cardAnswer(known); }, reduce ? 0 : 230);
 }
 
 function cardActions() {
-  if (!cards.flipped) return `<button class="btn primary big" data-action="flip-current">${icon('flip')} Umdrehen</button>`;
-  return `<button class="btn again big" data-action="card-again">${icon('flip')} Nochmal</button>
-    <button class="btn ok big" data-action="card-known">${icon('check')} Gewusst</button>`;
+  return `<button class="btn again big" data-action="card-again">${icon('left')} Nochmal</button>
+    <button class="btn ok big" data-action="card-known">Gewusst ${icon('right')}</button>`;
 }
 
 function flipCurrent() {
@@ -149,7 +207,6 @@ function flipCurrent() {
 
 function cardAnswer(known) {
   const set = currentSet();
-  if (!cards.flipped) { flipCurrent(); return; }
   const id = cards.queue.shift();
   if (!cards.firstTry.has(id)) {
     cards.firstTry.set(id, known);
