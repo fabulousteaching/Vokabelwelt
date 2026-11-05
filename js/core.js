@@ -464,6 +464,13 @@ function localPicture(word, lang = 'en') {
     const r = EMOJIS.byName.get(k.toLowerCase());
     if (r) return { kind: 'emoji', src: r.e };
   }
+  // Wortfamilie: hilfsbereit → Hilfe, helpful → help
+  for (const k of deFamily(core(word.german, 'de'))) {
+    if (maps.deExact.has(k)) return entryToPic(maps.deExact.get(k));
+  }
+  for (const k of enFamily(core(word.foreign, 'en'))) {
+    if (maps.en.has(k)) return entryToPic(maps.en.get(k));
+  }
   return null;
 }
 
@@ -536,8 +543,104 @@ function arasaacQuery(locale, text, mode = 'bestsearch') {
 
 const toPicto = (x) => ({ kind: 'picto', src: arasaacImg(x._id), title: x.keywords?.[0]?.keyword || '', credit: ARASAAC_CREDIT });
 
-/** Piktogramme für ein Wort. Treffer, die zum deutschen UND zum fremdsprachigen Wort passen,
- *  kommen zuerst – so wird z. B. bei „bat – Fledermaus“ das Tier gewählt und nicht der Schläger. */
+/* --- Wortfamilie: Gibt es für ein Wort kein Bild, suchen wir bei verwandten Wörtern anderer Wortarten.
+   Beispiel: „hilfsbereit“ → „Hilfe“, „helfen“; „helpful“ → „help“; „Freundschaft“ → „Freund“.
+   Die sichersten Verwandten kommen zuerst; gewagtere (Vokalwechsel wie hilf → helf) nur, wenn die nichts finden. */
+const DE_SUFFIXES = [
+  // [Endung, Art] – adj: Eigenschaft (freundlich), adjnoun: Nomen aus Eigenschaft (Freiheit), noun, verbnoun: Nomen aus Verb (Bewegung, Lehrer)
+  ['igkeit', 'adjnoun'], ['schaft', 'noun'], ['bereit', 'adj'], ['freudig', 'adj'], ['würdig', 'adj'], ['ungen', 'verbnoun'],
+  ['fähig', 'adj'], ['mäßig', 'adj'], ['reich', 'adj'], ['artig', 'adj'], ['keit', 'adjnoun'], ['heit', 'adjnoun'],
+  ['erin', 'verbnoun'], ['chen', 'noun'], ['lein', 'noun'], ['voll', 'adj'], ['haft', 'adj'], ['lich', 'adj'], ['isch', 'adj'],
+  ['ung', 'verbnoun'], ['nis', 'verbnoun'], ['los', 'adj'], ['bar', 'adj'], ['sam', 'adj'], ['end', 'adj'], ['ig', 'adj'], ['er', 'verbnoun'],
+];
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+function deStrip(x, kinds) {
+  for (const [suf, kind] of DE_SUFFIXES) {
+    if (kinds && !kinds.includes(kind)) continue;
+    if (x.endsWith(suf) && x.length - suf.length >= 3) return { stem: x.slice(0, -suf.length), kind, suf };
+  }
+  return null;
+}
+
+/** Verwandte deutsche Wörter in Gruppen, die sichersten zuerst (ohne das Wort selbst) */
+function deFamilyGroups(word) {
+  const w = String(word || '').trim();
+  if (!w || /\s/.test(w) || w.length < 5) return [];
+  const low = w.toLowerCase();
+  const stems = [];
+  const addStem = (s) => { if (s && s.length >= 3 && !stems.includes(s)) stems.push(s); };
+  const first = deStrip(low);
+  if (first) {
+    addStem(first.stem);
+    if (first.suf === 'igkeit') addStem(first.stem + 'ig');
+    // Freundlichkeit → freundlich → Freund (nur bei Nomen aus Eigenschaften)
+    if (first.kind === 'adjnoun') { const second = deStrip(first.stem, ['adj']); if (second) addStem(second.stem); }
+  }
+  if (/[a-zäöüß](en|[lr]n)$/.test(low) && w[0] === low[0]) addStem(low.replace(/e?n$/, '')); // Verb → Nomen
+  const part = low.match(/^ge(.{3,})t$/); // Partizip: gekocht → kochen
+  if (part) addStem(part[1]);
+  const forms = (t) => {
+    const base = t.replace(/e$/, '');
+    const out = [cap(t), /e[lr]$/.test(base) ? base + 'n' : base + 'en', cap(base + 'e'), base + 'e'];
+    if (/[^e][lr]$/.test(base)) { const ins = base.slice(0, -1) + 'e' + base.slice(-1); out.push(cap(ins), ins + 'n'); } // hungr → Hunger, hungern
+    return out;
+  };
+  const sure = [], umlaut = [], vowel = [];
+  for (const s0 of stems) {
+    const s = /[^aeiouäöüs]s$/.test(s0) ? s0.slice(0, -1) : s0; // Fugen-s: hilfs → hilf
+    sure.push(...forms(s));
+    const plain = s.replace(/äu/g, 'au').replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u'); // Läuf → lauf
+    if (plain !== s) umlaut.push(...forms(plain));
+    if (/^[^aeiouäöü]*i[^aeiouäöü]/.test(s)) vowel.push(...forms(s.replace(/i/, 'e'))); // hilf → helf
+    else if (/^[^aeiouäöü]*e[^aeiouäöü]/.test(s)) vowel.push(...forms(s.replace(/e/, 'i')));
+  }
+  const seen = new Set([w, low]);
+  const clean = (list) => list.filter((s) => s.length >= 3 && !seen.has(s) && seen.add(s));
+  return [clean(sure), clean(umlaut), clean(vowel)].filter((g) => g.length);
+}
+const deFamily = (word) => deFamilyGroups(word).flat();
+
+/** Verwandte englische Wörter (helpful → help, happiness → happy, swimmer → swim) */
+function enFamily(word) {
+  const w = String(word || '').trim().toLowerCase();
+  if (!w || /\s/.test(w) || w.length < 5) return [];
+  const RULES = [
+    ['fulness', ''], ['iness', 'y'], ['iful', 'y'], ['ness', ''], ['ful', ''], ['less', ''], ['ily', 'y'], ['ly', ''],
+    ['ship', ''], ['hood', ''], ['dom', ''], ['ment', ''], ['able', ''], ['ible', ''], ['ous', ''], ['ish', ''],
+    ['ation', 'ate'], ['tion', 'te'], ['ing', ''], ['er', ''], ['or', ''], ['ist', ''], ['y', ''],
+  ];
+  const rule = RULES.find(([suf]) => w.endsWith(suf) && w.length - suf.length >= 3);
+  if (!rule) return [];
+  const s = w.slice(0, -rule[0].length) + rule[1];
+  const out = [s];
+  if (/([^aeiou])\1$/.test(s)) out.unshift(s.slice(0, -1)); // swimm → swim, sunn → sun
+  if (/[^aeiou][lr]$/.test(s)) out.push(s.slice(0, -1) + 'e' + s.slice(-1)); // hungr → hunger
+  if (/(c|v|g|z|[^aeiou]l)$/.test(s)) out.push(s + 'e'); // danc → dance, driv → drive
+  return [...new Set(out)].filter((x) => x.length >= 3 && x !== w);
+}
+
+/** Piktogramme über die Wortfamilie: [{ x: ARASAAC-Treffer, via: Wort }].
+ *  Passt ein Bild auf Deutsch UND Englisch, kommt es zuerst. Gruppe für Gruppe, bis etwas gefunden ist. */
+async function pictoFamily(word) {
+  const groups = deFamilyGroups(core(word.german, 'de')).map((g) => g.slice(0, 8));
+  const enC = enFamily(core(word.foreign, 'en')).slice(0, 4);
+  if (!groups.length && !enC.length) return [];
+  const look = (locale, terms) => Promise.all(terms.map((t) => arasaacQuery(locale, t, 'bestsearch').then((l) => l.map((x) => ({ x, via: t }))))).then((a) => a.flat());
+  const enHits = enC.length ? look('en', enC) : Promise.resolve([]);
+  let deHits = [];
+  for (const g of groups.length ? groups : [[]]) {
+    deHits = await look('de', g);
+    if (deHits.length || net.arasaacDown) break;
+  }
+  const en = await enHits;
+  const enIds = new Set(en.map((h) => h.x._id));
+  return [...deHits.filter((h) => enIds.has(h.x._id)), ...deHits, ...en];
+}
+
+/** Piktogramme für ein Wort. Treffer, die zum deutschen UND zum englischen Wort passen,
+ *  kommen zuerst – so wird z. B. bei „bat – Fledermaus“ das Tier gewählt und nicht der Schläger.
+ *  Gibt es für das Wort selbst kein Piktogramm, wird in der Wortfamilie gesucht (hilfsbereit → helfen).
+ *  Ein Treffer über die Wortfamilie trägt via (das verwandte Wort). */
 async function pictoCandidates(word, lang, limit = 8) {
   const de = core(word.german, 'de'), fo = core(word.foreign, lang);
   const variants = (t) => [...new Set([t, stripAccents(t)])].filter(Boolean);
@@ -549,10 +652,12 @@ async function pictoCandidates(word, lang, limit = 8) {
     const foIds = new Set(foL.map((x) => x._id));
     return [...deL.filter((x) => foIds.has(x._id)), ...deL, ...foL];
   };
-  let list = await gather('bestsearch');
-  if (list.length < limit && !net.arasaacDown) list = list.concat(await gather('search'));
+  let list = (await gather('bestsearch')).map((x) => ({ x }));
+  if (!list.length && !net.arasaacDown) list = await pictoFamily(word);
+  if (list.length < limit && !net.arasaacDown) list = list.concat((await gather('search')).map((x) => ({ x })));
   const seen = new Set();
-  return list.filter((x) => (seen.has(x._id) ? false : seen.add(x._id))).slice(0, limit).map(toPicto);
+  return list.filter((h) => (seen.has(h.x._id) ? false : seen.add(h.x._id))).slice(0, limit)
+    .map((h) => (h.via ? { ...toPicto(h.x), via: h.via } : toPicto(h.x)));
 }
 
 /** Freie Suche im Bild-Dialog */
@@ -673,7 +778,13 @@ async function autoPicture(word, set) {
   if (local && (local.kind === 'color' || local.kind === 'number')) return local;
   const term = core(word.foreign, 'en').toLowerCase();
   // Global Symbols nur, wenn die Beschriftung genau passt
-  const gs = async () => (await globalSymbolsSearch(term, 8)).find((x) => x.title.trim().toLowerCase() === term) || null;
+  const gsExact = async (t) => (await globalSymbolsSearch(t, 8)).find((x) => x.title.trim().toLowerCase() === t) || null;
+  const gs = async () => {
+    const hit = await gsExact(term);
+    if (hit) return hit;
+    for (const t of enFamily(term).slice(0, 2)) { const h = await gsExact(t); if (h) return { ...h, via: t }; }
+    return null;
+  };
   const picto = async () => (await pictoCandidates(word, set.lang, 1))[0] || (await gs());
   const style = set.picStyle || 'picto';
   if (style === 'emoji') return local || (await picto());

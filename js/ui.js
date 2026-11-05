@@ -579,6 +579,7 @@ async function renderPicTab(set, word) {
       const q = $('#picto-q').value.trim();
       net.arasaacDown = false;
       $('#picto-results').innerHTML = '<p class="muted"><span class="spinner"></span> Suche …</p>';
+      $('#via-note')?.remove();
       $('#gs-results').innerHTML = '<p class="muted"><span class="spinner"></span> Suche …</p>';
       runGS(q);
       show('#picto-results', await pictoSearch(q), net.arasaacDown, 'Kein Piktogramm gefunden. Probiere ein anderes, einfacheres Wort.');
@@ -586,6 +587,10 @@ async function renderPicTab(set, word) {
     runGS(foCore || deCore);
     const first = await pictoCandidates(word, set.lang, 12);
     show('#picto-results', first.length ? first : await pictoSearch(deCore || foCore), net.arasaacDown, 'Kein Piktogramm gefunden. Probiere ein anderes, einfacheres Wort.');
+    const via = first.find((c) => c.via)?.via;
+    if (via && first[0]?.via && $('#picto-results')) {
+      $('#picto-results').insertAdjacentHTML('beforebegin', `<p class="via-note" id="via-note">${icon('sparkle')}<span>Für „${esc(deCore || foCore)}“ gibt es kein eigenes Piktogramm. Diese Bilder passen zu <strong>„${esc(via)}“</strong> aus derselben Wortfamilie.</span></p>`);
+    }
   } else if (tab === 'clipart') {
     const kind = ui.clipKind || 'color';
     body.innerHTML = `
