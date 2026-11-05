@@ -192,17 +192,6 @@ function confetti() {
 }
 
 /* ---------------- Startseite ---------------- */
-const EXAMPLES = [
-  {
-    name: 'Food & Animals',
-    text: 'apple – Apfel\nbanana – Banane\nbread – Brot\ncheese – Käse\nstrawberry – Erdbeere\nthe dog – der Hund\nthe cat – die Katze\nhorse – Pferd\nbutterfly – Schmetterling\nto swim – schwimmen\nhappy – glücklich\nred – rot',
-  },
-  {
-    name: 'School & Feelings',
-    text: 'the teacher – die Lehrerin, der Lehrer\nthe pencil – der Bleistift\nthe rubber / the eraser – der Radiergummi\nthe book – das Buch\nthe bag – die Tasche\nto read – lesen\nto write – schreiben\nsad – traurig\nangry – wütend\ntired – müde\nscared – ängstlich\nHow are you? – Wie geht es dir?',
-  },
-];
-
 /* „BOOM“ im Titel: Buchstaben fliegen beim Darüberfahren auseinander und setzen sich wieder zusammen */
 const BOOM_LETTERS = [['B', -0.85, -0.7, -40], ['O', -0.25, -1.15, 30], ['O', 0.35, -1.05, -26], ['M', 0.95, -0.6, 44]];
 const BOOM_SPARKS = ['#FFB703', '#EC4899', '#7C3AED', '#FFB703', '#4F46E5', '#EC4899', '#FFB703', '#7C3AED', '#EC4899', '#4F46E5'];
@@ -258,10 +247,7 @@ function viewHome() {
         <h2 id="lib-title">Meine Vokabelportionen</h2>
         ${libraryNote()}
         ${sets.length ? `<ul class="lib-list">${sets.map(libItem).join('')}</ul>` : '<p class="empty">Noch keine Portion gespeichert. Füge links deine Vokabeln ein – sie bleiben in diesem Browser gespeichert.</p>'}
-        <h3 class="lib-sub">Zum Ausprobieren</h3>
-        <ul class="examples">
-          ${EXAMPLES.map((ex, i) => `<li><button class="example" data-action="load-example" data-i="${i}">${flag()}<span><strong>${esc(ex.name)}</strong><small>Beispiel · ${ex.text.split('\n').length} Vokabeln</small></span></button></li>`).join('')}
-        </ul>
+        ${publicSearchHTML()}
       </aside>
     </div>
   </section>`;
@@ -280,7 +266,6 @@ function libItem(s) {
   }
   return `<li class="lib-item">
     <button class="lib-open" data-action="open-set" data-id="${s.id}">
-      <span class="lib-pics" aria-hidden="true">${s.words.slice(0, 3).map((w) => picHTML(w, s.lang, 'mini')).join('')}</span>
       <span class="lib-text"><strong>${esc(s.name)}</strong><small>${s.words.length} Vokabeln${t != null ? ` · Test ${t} %` : ''}</small></span>
     </button>
     <button class="icon-btn subtle" data-action="delete-set" data-id="${s.id}" aria-label="„${esc(s.name)}“ löschen" title="Löschen">${icon('trash')}</button>
@@ -289,6 +274,7 @@ function libItem(s) {
 
 function bindHome() {
   bindBoom();
+  bindPublicSearch();
   const ta = $('#vocab-input'), name = $('#set-name');
   const update = () => { ui.draft.text = ta.value; renderPreview(); };
   ta.addEventListener('input', debounce(update, 120));
@@ -1057,8 +1043,10 @@ async function openShare(set) {
         : `<p class="warn">Für einen QR-Code sind es zu viele Wörter. Teile die Portion in zwei kleinere auf – oder kopiere den Link.</p>
         <div class="row center"><button type="button" class="btn primary" data-action="copy-link">${icon('link')} Link kopieren</button></div>`}
       ${hasUploads ? '<p class="muted small">Eigene Fotos sind zu groß für den QR-Code. Dort erscheinen bei den Kindern automatisch gesuchte Bilder.</p>' : ''}
+      ${publishBoxHTML(set)}
       ${location.protocol === 'file:' ? '<p class="warn">Du hast Vokaboom als Datei geöffnet. Damit der QR-Code bei anderen funktioniert, muss Vokaboom im Internet liegen (zum Beispiel über GitHub Pages).</p>' : ''}
     </div>`, { cls: 'share-modal', label: 'Teilen' });
+  bindPublishBox(set);
 }
 
 function copyText(text) {

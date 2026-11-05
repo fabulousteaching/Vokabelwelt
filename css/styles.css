@@ -316,7 +316,15 @@ input:focus, textarea:focus, select:focus { border-color: var(--brand); outline:
 .lib-text { display: grid; min-width: 0; }
 .lib-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .lib-text small { display: flex; align-items: center; gap: .35rem; color: var(--ink-3); flex-wrap: wrap; }
-.lib-sub { font-size: 1.05rem; margin-top: .4rem; }
+.lib-sub { display: flex; align-items: center; gap: .45rem; font-size: 1.05rem; margin-top: .4rem; }
+.lib-sub .icon { color: var(--brand); }
+.pub-search { display: grid; gap: .7rem; padding-top: .9rem; border-top: 1px solid var(--line); }
+.pub-search .search-row { flex-wrap: nowrap; }
+.pub-search .search-row input { flex: 1 1 auto; min-width: 0; }
+.pub-results:empty { display: none; }
+.pub-results .lib-list { max-height: 360px; overflow: auto; }
+.pub-preview { max-height: 52vh; }
+.pub-box { display: grid; gap: .5rem; width: 100%; text-align: left; padding: 1rem; border-radius: 18px; background: var(--paper-2); border: 1px solid var(--line); }
 .lib-note { display: flex; align-items: center; gap: .45rem; font-size: .88rem; color: var(--green-ink); background: var(--green-wash); padding: .5rem .8rem; border-radius: 12px; }
 .lib-note.bad { color: var(--red); background: var(--red-wash); }
 .example {

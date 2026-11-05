@@ -71,6 +71,16 @@ Nach dem Speichern (Commit) ist die Anmeldung nach ein bis zwei Minuten auf GitH
 - Ohne Internet geht alles weiter wie bisher; gespeichert wird beim nächsten Mal mit Verbindung.
 - Unter **Konto** (oben rechts auf deinen Namen) lassen sich **Passwort** und **E-Mail-Adresse ändern**. Für eine neue E-Mail-Adresse fragt Vokaboom zur Sicherheit das aktuelle Passwort ab. Ist «Confirm email» ausgeschaltet, gilt die neue Adresse sofort. Ist es eingeschaltet, schickt Supabase einen Bestätigungs-Link an die neue Adresse (mit «Secure email change» auch einen an die bisherige); erst nach dem Klick gilt die neue Adresse.
 
+## Portionen von anderen finden
+
+Auf der Startseite gibt es die Suche „Portionen von anderen finden“. Dort erscheinen nur Portionen, die ihr Besitzer selbst freigegeben hat: **Teilen → „In der Suche zeigen“** (dafür braucht es ein Konto).
+
+- Öffentlich gespeichert wird nur eine Kopie mit Name, Vokabeln und Bildauswahl. Eigene Fotos, der Übungsstand und die E-Mail-Adresse werden **nicht** geteilt; wer eine Portion freigegeben hat, sehen andere nicht.
+- Ändert der Besitzer die Portion, wird die Kopie in der Suche ein paar Sekunden später nachgeführt. Schalter aus oder Portion löschen entfernt sie aus der Suche.
+- Suchen und „Übernehmen“ geht auch ohne Konto. Übernommene Portionen sind eigenständige Kopien.
+- Dafür braucht es die Tabelle `vokabelwelt_public`: einfach `supabase/vokabelwelt.sql` nochmals ganz im SQL Editor ausführen (bestehende Daten bleiben erhalten).
+- Unpassende Einträge kannst du in Supabase unter **Table Editor → vokabelwelt_public** löschen.
+
 ## Passwort vergessen
 
 - **Mit E-Mail-Versand:** Im Anmelde-Fenster die E-Mail-Adresse eingeben und auf **Passwort vergessen?** klicken. Der Link in der E-Mail öffnet Vokaboom, dort wählt man ein neues Passwort.

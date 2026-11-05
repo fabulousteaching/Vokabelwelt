@@ -27,6 +27,8 @@ const actions = {
   account: () => openAccount(),
   'cloud-sync': () => cloudSync(),
   'pw-forgot': () => forgotPassword(),
+  'pub-open': (el) => openPublicPreview(+el.dataset.i),
+  'pub-take': (el) => takePublicSet(+el.dataset.i),
   logout: async () => {
     closeModal(true);
     const n = await cloudLogout();
@@ -36,13 +38,6 @@ const actions = {
 
   /* Startseite */
   'draft-swap': () => { ui.draft.swap = !ui.draft.swap; renderPreview(); },
-  'load-example': (el) => {
-    const ex = EXAMPLES[+el.dataset.i];
-    ui.draft = { text: ex.text, name: ex.name, swap: false };
-    render();
-    $('#vocab-input')?.focus();
-    $('#new-set-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  },
   'delete-set': (el) => { ui.confirmDelete = el.dataset.id; render(); },
   'delete-set-no': () => { ui.confirmDelete = null; render(); },
   'delete-set-yes': (el) => {
