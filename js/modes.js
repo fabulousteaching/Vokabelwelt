@@ -494,6 +494,7 @@ function renderMatchChoice(set) {
 const speakM = { ids: [], idx: 0, show: 'word', state: 'idle', heard: '', revealed: false, attempts: 0, results: new Map(), fallback: false, reason: '', timer: null, finished: false };
 
 function startSpeak(set, ids) {
+  if (canListen()) loadCmu().catch(() => {}); // Aussprache-Wörterbuch im Hintergrund laden
   speakM.ids = shuffle(ids || set.words.filter((w) => w.foreign).map((w) => w.id));
   speakM.idx = 0;
   speakM.results = new Map();
@@ -592,8 +593,7 @@ function speakZone(set, w) {
   if (s === 'starting' || s === 'listening') {
     return `<button class="mic ${s === 'listening' ? 'listening' : 'starting'}" data-action="listen" aria-label="Aufnahme beenden">${icon('mic')}</button>
       <p class="mic-label">${s === 'listening' ? 'Ich höre zu … sprich jetzt!' : 'Mikrofon wird eingeschaltet …'}</p>
-      ${speakM.meter ? '<div class="mic-level" id="mic-level" aria-hidden="true"><span></span></div>' : ''}
-      <p class="heard-live" id="heard-live" aria-live="polite">${speakM.live ? `„${esc(speakM.live)}“` : ''}</p>`;
+      ${speakM.meter ? '<div class="mic-level" id="mic-level" aria-hidden="true"><span></span></div>' : ''}`;
   }
   if (s === 'error') {
     const isPh = String(speakM.error).startsWith('ph-');
@@ -618,13 +618,14 @@ function speakZone(set, w) {
       </div>`;
   }
   if (s === 'ok') {
-    return `<div class="banner good">${icon('check')}<div><strong>Richtig!</strong>${speakM.heard ? ` Ich habe „${esc(speakM.heard)}“ verstanden.` : ''}</div></div>
+    return `<div class="banner good">${icon('check')}<div><strong>Richtig!</strong></div></div>
       <div class="row center"><button class="btn primary" data-action="speak-next">Weiter ${icon('right')}</button></div>`;
   }
   if (s === 'bad') {
     const help = speakM.heard ? '' : (silenceHelp(speakM.peak) || 'Wenn das öfter passiert: Einstellungen (oben rechts) → „Mikrofon testen“.');
+    const many = speechTargets(w, set.lang).some((t) => t.includes(' '));
     const detail = !speakM.heard ? ' Tippe auf das Mikrofon und sprich gleich danach laut und deutlich.'
-      : ` Ich habe „${esc(speakM.heard)}“ verstanden. Richtig ist „${esc(w.foreign)}“.`;
+      : many ? ` Sag alle Wörter: „${esc(w.foreign.replace(/\s*\/\s*/g, ', '))}“.` : ` Richtig ist „${esc(w.foreign)}“.`;
     return `<div class="banner bad">${icon('x')}<div><strong>${speakM.heard ? 'Noch nicht ganz.' : 'Ich habe nichts gehört.'}</strong>
         ${detail}
         ${help ? `<span class="help-line">${esc(help)}</span>` : ''}</div></div>

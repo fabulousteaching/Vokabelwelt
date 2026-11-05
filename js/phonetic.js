@@ -245,7 +245,8 @@ function phScore(engine, post, phones) {
 
 /** Englisch: mit und ohne „to/the/a“ prüfen, das bessere Ergebnis zählt */
 function phReferences(word) {
-  const first = answerVariants(word.foreign)[0] || word.foreign;
+  // Stehen mehrere Wörter da („colour / color“), müssen alle gesagt werden
+  const first = answerAlts(word.foreign).map((a) => answerVariants(a)[0] || a).join(', ') || word.foreign;
   const full = ttsText(first, 'en');
   const short = stripArticle(full, 'en');
   return [...new Set([full, short])].filter(Boolean);
@@ -266,7 +267,9 @@ async function assessSpoken(word, { onStart, onLevel, onPhase } = {}) {
     if (!best || best.silent || r.score > best.score) best = { ...r, ref };
   }
   if (!best) throw 'ph-word';
-  const passMin = phCfg().passMin;
+  let passMin = phCfg().passMin;
+  // Kurze Wörter (höchstens 3 Laute pro Wort, z. B. he, his, tie) sind schwer zu treffen: 10 Punkte weniger nötig
+  if (!best.silent && best.phones && best.phones.length <= 3 * String(best.ref || '').split(/\s+/).filter(Boolean).length) passMin = Math.max(30, passMin - 10);
   if (!best.silent) {
     best.passMin = passMin;
     best.ok = best.score >= passMin; // ab der eingestellten Punktzahl (Standard 60) ist es richtig

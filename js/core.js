@@ -219,35 +219,122 @@ function normSpeech(s, lang, keepArticle = false) {
   t = t.replace(/\b(\d{1,2})\b/g, (m, n) => (window.NUMBER_WORDS[lang] || [])[+n] || m);
   t = t.replace(/[.,!?;:«»"“”„()…]/g, ' ').replace(/\s+[–—-]\s+/g, ' ').replace(/\s+/g, ' ').trim();
   if (!keepArticle) t = stripArticle(t, lang);
-  t = stripAccents(t).replace(/-/g, ' ').replace(/'/g, ' ').replace(/\s+/g, ' ').trim();
+  t = stripAccents(t).replace(/-/g, ' ').replace(/(^|\s)'+|'+(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim(); // they're bleibt ganz
   const hm = homophoneMap[lang];
   if (hm) t = t.split(' ').map((w) => hm.get(w) || w).join(' ');
   return t;
 }
 
+/* ---------- Aussprache vergleichen statt Schreibweise ----------
+   Die Spracherkennung schreibt oft ein gleich klingendes Wort („there“ statt „their“, „Thai“ statt „tie“,
+   „is“ statt „his“). Deshalb vergleichen wir die Laute aus dem englischen Aussprache-Wörterbuch (CMUdict,
+   über charsiu-js, gemeinfrei/BSD): Gleich klingend zählt als richtig. Kurze Wörter (höchstens 3 Laute)
+   dürfen um einen ähnlichen Laut abweichen (d/th, w/v, i/ie, verschlucktes h …), längere nicht –
+   „Brad“ oder „bird“ statt „bread“ bleibt falsch. Stehen mehrere Wörter da, müssen alle gesagt werden. */
+const CMU_URL = 'https://cdn.jsdelivr.net/npm/charsiu-js@0.2.0/assets/cmudict.json';
+const cmu = { dict: null, loading: null };
+function loadCmu() {
+  if (cmu.dict) return Promise.resolve(cmu.dict);
+  if (!cmu.loading) {
+    cmu.loading = fetch(CMU_URL).then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((d) => { cmu.dict = d; return d; })
+      .catch((e) => { cmu.loading = null; throw e; });
+  }
+  return cmu.loading;
+}
+/** Laute eines Wortes, z. B. their → [DH, EH, R]; unbekannt → null */
+function pronOf(word) {
+  const d = cmu.dict;
+  if (!d || !word) return null;
+  const w = String(word).toLowerCase();
+  let p = d[w];
+  if (!p && /'s$/.test(w) && d[w.slice(0, -2)]) p = d[w.slice(0, -2)] + ' Z';
+  if (!p && /[^s]s$/.test(w) && d[w.slice(0, -1)]) p = d[w.slice(0, -1)] + ' S'; // maths → math + s
+  return p ? p.replace(/\d/g, '').split(' ') : null;
+}
+// Ähnliche Laute. Bewusst NICHT dabei: e/ä (bed – bad) und i/ie (ship – sheep), das sind echte Wortpaare.
+const PH_NEAR = new Set(['DH:D', 'DH:TH', 'DH:Z', 'TH:T', 'TH:F', 'TH:S', 'S:Z', 'EH:EY', 'AH:ER', 'AH:AA', 'AA:AO',
+  'UH:UW', 'V:W', 'V:F', 'B:P', 'D:T', 'G:K', 'ER:R', 'OW:AO'].flatMap((x) => { const [a, b] = x.split(':'); return [`${a}:${b}`, `${b}:${a}`]; }));
+const PH_LIGHT = new Set(['HH', 'S', 'Z', 'R']); // darf fehlen oder dazukommen
+/** Abstand zweier Lautfolgen: ähnliche Laute kosten 1, alles andere 2 */
+function phDist(a, b) {
+  const n = a.length, m = b.length;
+  let prev = Array.from({ length: m + 1 }, (_, j) => (j ? prev0(b, j) : 0));
+  function prev0(arr, j) { let c = 0; for (let k = 0; k < j; k++) c += PH_LIGHT.has(arr[k]) ? 1 : 2; return c; }
+  for (let i = 1; i <= n; i++) {
+    const cur = [prev[0] + (PH_LIGHT.has(a[i - 1]) ? 1 : 2)];
+    for (let j = 1; j <= m; j++) {
+      const sub = a[i - 1] === b[j - 1] ? 0 : PH_NEAR.has(`${a[i - 1]}:${b[j - 1]}`) ? 1 : 2;
+      cur[j] = Math.min(prev[j - 1] + sub, prev[j] + (PH_LIGHT.has(a[i - 1]) ? 1 : 2), cur[j - 1] + (PH_LIGHT.has(b[j - 1]) ? 1 : 2));
+    }
+    prev = cur;
+  }
+  return prev[m];
+}
+/** Ist das Wort schwer zu treffen? Kurz (höchstens 3 Laute), mit th-Laut oder mit stummen Buchstaben */
+function hardWord(t) {
+  const p = pronOf(t);
+  if (!p) return t.length <= 4 || /th/.test(t);
+  return p.length <= 3 || p.includes('TH') || p.includes('DH') || t.replace(/[^a-z]/g, '').length >= p.length + 3;
+}
+const plural = (a, b) => a === b + 's' || a === b + 'es' || b === a + 's' || b === a + 'es';
+/** Passt ein gehörtes Wort zum Zielwort? */
+function tokenMatch(h, t) {
+  if (h === t || plural(h, t)) return true;
+  const ph = pronOf(h), pt = pronOf(t);
+  if (ph && pt) {
+    if (ph.join(' ') === pt.join(' ')) return true; // gleich klingend
+    const tail = (x, y) => x.length === y.length + 1 && x.slice(0, -1).join(' ') === y.join(' ') && /^[SZ]$/.test(x[x.length - 1]);
+    if (tail(ph, pt) || tail(pt, ph)) return true; // Einzahl/Mehrzahl (maths – math)
+    if (hardWord(t) || pt.length >= 7) return phDist(ph, pt) <= 1;
+    return false;
+  }
+  return (hardWord(t) || t.length >= 8) && lev(h, t) <= 1;
+}
+const SPEECH_FILLER = new Set(['the', 'a', 'an', 'to', 'uh', 'um', 'er', 'and']);
+/** Alle Zielwörter der Reihe nach gesagt? Füllwörter dürfen dazwischen stehen. */
+function tokensMatch(heard, target) {
+  const H = heard.split(' ').filter(Boolean), T = target.split(' ').filter(Boolean);
+  if (!H.length || !T.length) return false;
+  if (H.join('') === T.join('')) return true; // „ice cream“ = „icecream“
+  const memo = new Map();
+  const go = (i, j) => {
+    const key = i * 1000 + j;
+    if (memo.has(key)) return memo.get(key);
+    let ok;
+    if (j === T.length) ok = H.slice(i).every((x) => SPEECH_FILLER.has(x));
+    else if (i === H.length) ok = false;
+    else ok = (tokenMatch(H[i], T[j]) && go(i + 1, j + 1))
+      || (i + 1 < H.length && H[i] + H[i + 1] === T[j] && go(i + 2, j + 1)) // „foot ball“ = „football“
+      || (SPEECH_FILLER.has(H[i]) && go(i + 1, j));
+    memo.set(key, ok);
+    return ok;
+  };
+  return go(0, 0);
+}
+/** Mögliche Zielsätze: alle Teile von „a / b“ in beliebiger Reihenfolge, Klammer-Varianten */
+function speechTargets(word, lang) {
+  const alts = answerAlts(word.foreign).map((a) => answerVariants(a).map((v) => normSpeech(ttsText(v), lang)).filter(Boolean));
+  const out = new Set();
+  for (const perm of permutations(alts)) {
+    perm.reduce((acc, forms) => acc.flatMap((pre) => forms.map((f) => (pre ? `${pre} ${f}` : f))), ['']).slice(0, 32).forEach((x) => x && out.add(x));
+  }
+  return [...out];
+}
+
 /**
- * Vergleicht das Erkannte mit dem Zielwort – einfach und ausgewogen:
- * Es zählt nur der wahrscheinlichste erkannte Text, und er muss das Wort sein
- * („Brad“ oder „bird“ statt „bread“ ist falsch). Die Mehrzahl ist ok, bei langen
- * Wörtern (ab 8 Buchstaben) darf ein Buchstabe abweichen. Gleich klingende Wörter zählen.
- * alternatives.best = { t, conf, final } kommt von listenOnce.
+ * Vergleicht das Erkannte mit dem Zielwort. alternatives.best = { t, conf, final } kommt von listenOnce.
+ * Normal zählt nur der wahrscheinlichste erkannte Text; bei schwer zu treffenden Wörtern auch die anderen Vorschläge.
  */
 function speechMatch(alternatives, word, lang) {
-  const variants = answerVariants(word.foreign);
-  const targets = variants.map((v) => normSpeech(v, lang)).filter(Boolean);
+  const targets = speechTargets(word, lang);
   const best = alternatives.best || { t: alternatives[0] || '', conf: 0, final: false };
-  const heard = best.t || '';
-  const h = normSpeech(heard, lang);
-  if (!h) return { ok: false, score: 0, heard: '' };
-  const squash = (x) => x.replace(/ /g, '');
-  const near = (t) => {
-    const a = squash(h), b = squash(t);
-    return a === b || a === b + 's' || a === b + 'es' || (b.length >= 8 && lev(a, b) <= 1);
-  };
-  const ok = targets.some((t) => h === t || near(t));
-  const score = Math.max(0, ...targets.map((t) => similarity(h, t)));
-  if (!ok) return { ok: false, score, heard };
-  return { ok: true, score: 1, heard };
+  const heard = best.t || alternatives[0] || '';
+  if (!normSpeech(heard, lang)) return { ok: false, score: 0, heard: '' };
+  const hard = targets.some((t) => t.split(' ').some(hardWord));
+  const candidates = [heard, ...(hard ? alternatives : [])].map((x) => normSpeech(x, lang)).filter(Boolean);
+  const ok = candidates.some((h) => targets.some((t) => tokensMatch(h, t)));
+  return { ok, score: ok ? 1 : 0, heard };
 }
 
 /** Text, der vorgelesen wird (Abkürzungen ausgeschrieben) */
