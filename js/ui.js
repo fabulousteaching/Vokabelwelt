@@ -203,6 +203,29 @@ const EXAMPLES = [
   },
 ];
 
+/* „BOOM“ im Titel: Buchstaben fliegen beim Darüberfahren auseinander und setzen sich wieder zusammen */
+const BOOM_LETTERS = [['B', -0.85, -0.7, -40], ['O', -0.25, -1.15, 30], ['O', 0.35, -1.05, -26], ['M', 0.95, -0.6, 44]];
+const BOOM_SPARKS = ['#FFB703', '#EC4899', '#7C3AED', '#FFB703', '#4F46E5', '#EC4899', '#FFB703', '#7C3AED', '#EC4899', '#4F46E5'];
+function boomHTML() {
+  const letters = BOOM_LETTERS.map(([l, dx, dy, r], i) => `<span class="boom-l" style="--dx:${dx}em;--dy:${dy}em;--r:${r}deg;--i:${i}">${l}</span>`).join('');
+  const sparks = BOOM_SPARKS.map((c, i) => {
+    const a = (i / BOOM_SPARKS.length) * Math.PI * 2 - Math.PI / 2, d = 1.1 + (i % 3) * 0.3;
+    return `<i class="boom-spark" style="--c:${c};--x:${(Math.cos(a) * d * 1.4).toFixed(2)}em;--y:${(Math.sin(a) * d).toFixed(2)}em"></i>`;
+  }).join('');
+  return `<span class="boom" id="boom">${letters}<span class="boom-sparks" aria-hidden="true">${sparks}</span><svg class="boom-burst" viewBox="44 -4 34 28" aria-hidden="true"><g stroke-linecap="round"><path d="M54 13.1L52 2.3" stroke="#EC4899" stroke-width="4"/><path d="M57.8 13.2L63.3 1.9" stroke="#FFB703" stroke-width="4.4"/><path d="M60.3 16.2L70 11" stroke="#EC4899" stroke-width="4"/><path d="M61.5 19.7L68.9 20.5" stroke="#FFB703" stroke-width="3.6"/><path d="M50.2 14.7L45.7 10.6" stroke="#FFB703" stroke-width="3.6"/></g><circle cx="71" cy="2.5" r="1.5" fill="#EC4899"/></svg></span>`;
+}
+function bindBoom() {
+  const el = $('#boom');
+  if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const go = () => {
+    if (el.classList.contains('explode')) return;
+    el.classList.add('explode');
+    setTimeout(() => el.classList.remove('explode'), 1150);
+  };
+  el.addEventListener('pointerenter', go);
+  el.addEventListener('click', go);
+}
+
 function viewHome() {
   const d = ui.draft;
   const sets = db.sets;
@@ -210,7 +233,7 @@ function viewHome() {
   <section class="home">
     <div class="home-intro">
       <p class="eyebrow">${flag()} Englisch-Vokabeln üben</p>
-      <h1>Du brauchst nur deine Vokabelliste und <span class="boom">BOOM<svg class="boom-burst" viewBox="44 -4 34 28" aria-hidden="true"><g stroke-linecap="round"><path d="M54 13.1L52 2.3" stroke="#EC4899" stroke-width="4"/><path d="M57.8 13.2L63.3 1.9" stroke="#FFB703" stroke-width="4.4"/><path d="M60.3 16.2L70 11" stroke="#EC4899" stroke-width="4"/><path d="M61.5 19.7L68.9 20.5" stroke="#FFB703" stroke-width="3.6"/><path d="M50.2 14.7L45.7 10.6" stroke="#FFB703" stroke-width="3.6"/></g><circle cx="71" cy="2.5" r="1.5" fill="#EC4899"/></svg></span> werden daraus ganz einfach <mark>Lernkarten, Übungen, Spiele und Tests.</mark></h1>
+      <h1>Nimm deine Vokabelliste und ${boomHTML()} werden daraus ganz einfach <mark>Lernkarten, Übungen, Spiele und Tests.</mark></h1>
       <p class="lead">Vokabeln einfügen, fertig. Und Bildvorschläge für die Karten macht dir Vokaboom auch gleich schon.</p>
     </div>
     <div class="home-grid">
@@ -265,6 +288,7 @@ function libItem(s) {
 }
 
 function bindHome() {
+  bindBoom();
   const ta = $('#vocab-input'), name = $('#set-name');
   const update = () => { ui.draft.text = ta.value; renderPreview(); };
   ta.addEventListener('input', debounce(update, 120));
