@@ -409,6 +409,29 @@ async function importFromHash() {
   }
 }
 
+/* ---------------- Neue Version? ----------------
+   GitHub Pages lässt Dateien eine Weile im Browser-Zwischenspeicher. Deshalb fragen wir beim Start
+   und beim Zurückkehren in den Tab nach, ob index.html eine neuere Versionsnummer hat – und laden dann neu. */
+const APP_VERSION = (document.querySelector('script[src*="js/main.js"]')?.getAttribute('src').match(/[?&]v=(\d+)/) || [])[1] || '';
+let lastUpdateCheck = 0;
+async function checkForUpdate() {
+  if (!APP_VERSION || location.protocol === 'file:' || Date.now() - lastUpdateCheck < 60000) return;
+  lastUpdateCheck = Date.now();
+  try {
+    const r = await fetch(`${location.pathname}?update=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const live = ((await r.text()).match(/js\/main\.js\?v=(\d+)/) || [])[1];
+    if (!live || live <= APP_VERSION) return;
+    const key = 'vokaboom.reloadedFor';
+    let tried = '';
+    try { tried = sessionStorage.getItem(key) || ''; sessionStorage.setItem(key, live); } catch { /* */ }
+    const busy = ['test', 'dictation', 'speak'].includes(ui.view) || !!ui.modal;
+    if (tried === live || busy) { toast('Es gibt eine neue Version von Vokaboom. Lade die Seite neu, um sie zu bekommen.'); return; }
+    location.reload();
+  } catch { /* offline */ }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForUpdate(); });
+
 async function boot() {
   loadDB();
   renderShell();
@@ -418,5 +441,6 @@ async function boot() {
   if (!(await importFromHash())) render();
   window.addEventListener('hashchange', importFromHash);
   cloudInit();
+  setTimeout(checkForUpdate, 1500);
 }
 boot();
