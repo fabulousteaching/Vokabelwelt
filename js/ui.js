@@ -242,7 +242,7 @@ function viewHome() {
           <h2>Neue Vokabelportion</h2>
         </div>
         <label class="field" for="set-name">
-          <span class="label">Name der Portion <small>(freiwillig)</small></span>
+          <span class="label">Name der Portion</span>
           <input id="set-name" type="text" maxlength="80" placeholder="z. B. Unit 3 – Food" value="${esc(d.name)}">
         </label>
         <label class="field" for="vocab-input">
