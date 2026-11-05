@@ -22,6 +22,7 @@ const actions = {
   login: (el) => openLogin(el.dataset.mode || 'login'),
   account: () => openAccount(),
   'cloud-sync': () => cloudSync(),
+  'pw-forgot': () => forgotPassword(),
   logout: async () => {
     closeModal(true);
     const n = await cloudLogout();

@@ -25,7 +25,7 @@ Ist Deutsch links, erkennt Vokabelwelt das meistens selbst. Sonst hilft der Knop
 
 Regeln beim Schreiben (grün = richtig, orange = fast richtig, ein halber Punkt, rot = falsch):
 
-- Abstände zählen nicht: „icecream“ = „ice cream“.
+- Abstände: „icecream“ statt „ice cream“ (oder „foot ball“ statt „football“) → orange, mit Hinweis, ob man das Wort getrennt oder zusammen schreibt. Doppelte Abstände zählen nicht.
 - „the“, „a“, „an“ und „to“ müssen nicht mitgeschrieben werden.
 - `colo(u)r` → „colour“ und „color“ sind beide richtig.
 - `colour / color` → beide Varianten schreiben ist richtig, mit oder ohne `/` („colour color“ geht auch). Nur eine davon → orange, mit Hinweis.
@@ -65,7 +65,7 @@ Piktogramme: Sergio Palao, ARASAAC (https://arasaac.org), Eigentum der Regierung
 ## Speichern und Anmelden
 
 Ohne Anmeldung wird alles nur im Browser gespeichert (localStorage).
-Mit **Anmelden** (oben rechts, Benutzername und Passwort) werden deine Portionen in deinem Konto gespeichert und sind auf jedem Gerät da. Das läuft über [Supabase](https://supabase.com), wie bei SmartSlots. Die Einrichtung (Projekt, Tabelle, Schlüssel in `js/config.js`) steht in [`supabase/ANLEITUNG.md`](supabase/ANLEITUNG.md). Die Kinder brauchen kein Konto.
+Mit **Anmelden** (oben rechts, mit E-Mail-Adresse und Passwort) werden deine Portionen in deinem Konto gespeichert und sind auf jedem Gerät da. Das läuft über [Supabase](https://supabase.com), wie bei SmartSlots. Die Einrichtung (Projekt, Tabelle, Schlüssel in `js/config.js`) steht in [`supabase/ANLEITUNG.md`](supabase/ANLEITUNG.md). Die Kinder brauchen kein Konto.
 
 ## Online stellen (GitHub Pages)
 

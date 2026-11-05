@@ -102,34 +102,40 @@ function normAnswer(s) {
 }
 
 /* ---------- Geschriebene Antworten prüfen ----------
-   Regeln: Abstände zählen nicht. „the/a/an/to“ sind freiwillig. „…“ wird ignoriert.
-   colo(u)r: beide Schreibweisen richtig. „colour / color“: beide schreiben (mit oder ohne /) –
-   nur eine davon ist fast richtig. Groß-/Kleinschreibung falsch → fast richtig mit Hinweis.
-   Fehlt bei einer Frage das Fragezeichen → fast richtig. Ein kleiner Tippfehler → fast richtig. */
+   Regeln: „the/a/an/to“ sind freiwillig. „…“ wird ignoriert. colo(u)r: beide Schreibweisen richtig.
+   Fast richtig (orange, mit Hinweis): Abstand fehlt oder ist zu viel („icecream“ statt „ice cream“),
+   bei „colour / color“ nur eine Variante (beide mit oder ohne / ist richtig), Groß-/Kleinschreibung,
+   fehlendes Fragezeichen, ein kleiner Tippfehler. */
 const ansPrep = (s) => String(s || '').normalize('NFC').replace(/[’‘`´]/g, "'").replace(/\.{2,}|…/g, ' ');
-/** Vergleichsschlüssel: ohne Satzzeichen, ohne Artikel am Anfang, ohne Abstände */
+/** Vergleichsschlüssel: ohne Satzzeichen, ohne Artikel am Anfang, Abstände auf einen vereinheitlicht */
 function ansKey(s) {
-  let t = ansPrep(s).replace(/[?¿!.,;:"“”„«»()[\]/]/g, ' ').replace(/\s+[–—-]\s+/g, ' ').replace(/\s+/g, ' ').trim();
-  t = stripArticle(t, 'en');
-  return t.replace(/\s+/g, '');
+  const t = ansPrep(s).replace(/[?¿!.,;:"“”„«»()[\]/]/g, ' ').replace(/\s+[–—-]\s+/g, ' ').replace(/\s+/g, ' ').trim();
+  return stripArticle(t, 'en');
 }
 /** Alternativen einer Lösung: „colour / color“ → [colour, color] */
 const answerAlts = (text) => String(text || '').split(/\s*[\/;]\s*/).map((s) => s.trim()).filter(Boolean);
-const LEVELS = ['exact', 'case', 'accent', 'typo'];
-/** Wie nah ist die Eingabe an der Lösung? exact | case | accent | typo | null */
+/** Wie nah ist die Eingabe an der Lösung? null = falsch, sonst die Abweichungen (leer = genau richtig):
+ *  space (Abstand), case (Groß/klein), accent (Akzent), typo (ein Tippfehler) */
 function compareKeys(ik, tk) {
   if (!ik || !tk) return null;
-  if (ik === tk) return 'exact';
-  const il = ik.toLowerCase(), tl = tk.toLowerCase();
-  if (il === tl) return 'case';
-  const ia = stripAccents(il), ta = stripAccents(tl);
-  if (ia === ta) return 'accent';
-  const d = lev(ia, ta);
-  if ((ta.length >= 4 && d === 1) || (ta.length >= 9 && d === 2)) return 'typo';
-  return null;
+  if (ik === tk) return [];
+  const la = stripAccents(ik.toLowerCase()), lb = stripAccents(tk.toLowerCase());
+  const na = la.replace(/ /g, ''), nb = lb.replace(/ /g, '');
+  if (na !== nb) {
+    const d = lev(na, nb);
+    return (nb.length >= 4 && d === 1) || (nb.length >= 9 && d === 2) ? ['typo'] : null;
+  }
+  const issues = [];
+  if (la !== lb) issues.push('space');
+  const ca = ik.replace(/ /g, ''), cb = tk.replace(/ /g, '');
+  if (ca !== cb) issues.push(ca.toLowerCase() === cb.toLowerCase() ? 'case' : 'accent');
+  return issues;
 }
-const betterLevel = (a, b) => (a == null ? b : b == null ? a : LEVELS.indexOf(a) <= LEVELS.indexOf(b) ? a : b);
-const worseLevel = (a, b) => (a == null || b == null ? null : LEVELS.indexOf(a) >= LEVELS.indexOf(b) ? a : b);
+const ISSUE_WEIGHT = { space: 1, case: 1, accent: 2, typo: 3 };
+const matchCost = (m) => (m ? m.issues.reduce((s, i) => s + ISSUE_WEIGHT[i], 0) : Infinity);
+const betterMatch = (a, b) => (matchCost(b) < matchCost(a) ? b : a);
+const joinMatch = (a, b) => (a && b ? { issues: [...new Set([...a.issues, ...b.issues])], pairs: [...a.pairs, ...b.pairs] } : null);
+const keyMatch = (ik, tk) => { const issues = compareKeys(ik, tk); return issues ? { issues, pairs: [{ ik, tk }] } : null; };
 function permutations(arr) {
   if (arr.length <= 1 || arr.length > 5) return [arr];
   return arr.flatMap((x, i) => permutations([...arr.slice(0, i), ...arr.slice(i + 1)]).map((p) => [x, ...p]));
@@ -137,7 +143,7 @@ function permutations(arr) {
 /** Eine Eingabe gegen eine Alternative (mit Klammer-Varianten) */
 function matchAlt(input, alt) {
   const ik = ansKey(input);
-  return answerVariants(alt).reduce((best, f) => betterLevel(best, compareKeys(ik, ansKey(f))), null);
+  return answerVariants(alt).reduce((best, f) => betterMatch(best, keyMatch(ik, ansKey(f))), null);
 }
 /** Alle Alternativen geschrieben? Mit Trennzeichen („colour / color“, „colour, color“) oder ohne („colour color“) */
 function matchAllAlts(input, alts) {
@@ -145,19 +151,27 @@ function matchAllAlts(input, alts) {
   const parts = ansPrep(input).split(/[\/,;]+/).map((s) => s.trim()).filter(Boolean);
   if (parts.length === alts.length) {
     for (const perm of permutations(alts)) {
-      let lvl = 'exact';
-      perm.forEach((a, i) => { lvl = worseLevel(lvl, matchAlt(parts[i], a)); });
-      best = betterLevel(best, lvl);
+      best = betterMatch(best, perm.reduce((m, a, i) => joinMatch(m, matchAlt(parts[i], a)), { issues: [], pairs: [] }));
     }
   }
-  if (best !== 'exact') {
+  if (!best || best.issues.length) {
     const ik = ansKey(input);
     for (const perm of permutations(alts)) {
-      const forms = perm.reduce((acc, a) => acc.flatMap((pre) => answerVariants(a).map((f) => pre + ansKey(f))), ['']);
-      forms.slice(0, 64).forEach((fk) => { best = betterLevel(best, compareKeys(ik, fk)); });
+      const forms = perm.reduce((acc, a) => acc.flatMap((pre) => answerVariants(a).map((f) => (pre ? `${pre} ${ansKey(f)}` : ansKey(f)))), ['']);
+      forms.slice(0, 64).forEach((fk) => { best = betterMatch(best, keyMatch(ik, fk)); });
     }
   }
   return best;
+}
+/** Hinweis zu den Abständen: getrennt oder zusammen? */
+function spaceNote(pairs) {
+  const spaces = (s) => (s.match(/ /g) || []).length;
+  const p = pairs.find((x) => stripAccents(x.ik.toLowerCase()) !== stripAccents(x.tk.toLowerCase())) || pairs[0];
+  if (!p) return 'Achte auf die Abstände.';
+  const t = spaces(p.tk), i = spaces(p.ik);
+  return t > i ? `Achte auf die Abstände: „${p.tk}“ schreibt man getrennt.`
+    : t < i ? `Achte auf die Abstände: „${p.tk}“ schreibt man zusammen.`
+      : `Achte auf die Abstände: „${p.tk}“.`;
 }
 
 /** Bewertet eine geschriebene Antwort: { status: correct | almost | wrong, note } */
@@ -165,18 +179,20 @@ function checkAnswer(input, word) {
   if (!ansKey(input)) return { status: 'wrong', note: 'Keine Antwort.' };
   const alts = answerAlts(word.foreign);
   if (!alts.length) return { status: 'wrong' };
-  let lvl = alts.length > 1 ? matchAllAlts(input, alts) : null;
+  let m = alts.length > 1 ? matchAllAlts(input, alts) : null;
   let partial = false;
-  if (lvl == null) {
-    lvl = alts.reduce((best, a) => betterLevel(best, matchAlt(input, a)), null);
-    partial = lvl != null && alts.length > 1;
+  if (!m) {
+    m = alts.reduce((best, a) => betterMatch(best, matchAlt(input, a)), null);
+    partial = !!m && alts.length > 1;
   }
-  if (lvl == null) return { status: 'wrong' };
+  if (!m) return { status: 'wrong' };
+  const has = (x) => m.issues.includes(x);
   const notes = [];
   if (partial) notes.push(`Es gibt ${alts.length === 2 ? 'zwei' : 'mehrere'} Lösungen: „${alts.join(' / ')}“. Schreib ${alts.length === 2 ? 'beide' : 'alle'}.`);
-  if (lvl === 'case') notes.push('Achte auf die Groß- und Kleinschreibung.');
-  if (lvl === 'accent') notes.push('Achte auf die Schreibweise.');
-  if (lvl === 'typo') notes.push('Ein kleiner Rechtschreibfehler.');
+  if (has('space')) notes.push(spaceNote(m.pairs));
+  if (has('case')) notes.push('Achte auf die Groß- und Kleinschreibung.');
+  if (has('accent')) notes.push('Achte auf die Schreibweise.');
+  if (has('typo')) notes.push('Ein kleiner Rechtschreibfehler.');
   if (/\?/.test(word.foreign) && !/\?/.test(input)) notes.push('Denk an das Fragezeichen.');
   return notes.length ? { status: 'almost', note: `Fast! ${notes.join(' ')}` } : { status: 'correct' };
 }

@@ -236,7 +236,7 @@ button.crumb:hover { background: var(--sunken); color: var(--ink); }
 .chip:hover { border-color: var(--brand); color: var(--brand-ink); }
 .chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
 
-input[type="text"], input[type="search"], input[type="url"], input[type="password"], textarea, select {
+input[type="text"], input[type="search"], input[type="url"], input[type="password"], input[type="email"], textarea, select {
   width: 100%; border: 1.5px solid var(--line-2); border-radius: 14px; background: var(--paper);
   padding: .6rem .85rem; min-height: 46px; color: var(--ink);
   transition: border-color .15s ease, box-shadow .15s ease;
@@ -716,6 +716,9 @@ input[type="range"] { accent-color: var(--brand); width: 100%; }
 .auth-form { display: grid; gap: .9rem; }
 .form-error { color: var(--red); font-size: .9rem; font-weight: 500; }
 .form-error:empty { display: none; }
+.form-info { color: var(--green-ink); background: var(--green-wash); font-size: .9rem; padding: .6rem .85rem; border-radius: 12px; }
+.form-info:empty { display: none; }
+.link-btn { justify-self: center; background: none; border: 0; padding: .3rem .5rem; color: var(--brand-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; border-radius: 8px; }
 .account-card { display: flex; align-items: center; gap: .9rem; padding: .9rem; border-radius: 18px; background: var(--paper-2); border: 1px solid var(--line); }
 .account-card strong { font-size: 1.15rem; }
 .account-avatar { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; font-family: var(--font-display); font-weight: 800; font-size: 1.5rem; flex: none; }
