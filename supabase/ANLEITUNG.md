@@ -73,7 +73,7 @@ Nach dem Speichern (Commit) ist die Anmeldung nach ein bis zwei Minuten auf GitH
 
 ## Portionen von anderen finden
 
-Auf der Startseite gibt es die Suche „Portionen von anderen finden“. Dort erscheinen nur Portionen, die ihr Besitzer selbst freigegeben hat: **Teilen → „In der Suche zeigen“** (dafür braucht es ein Konto).
+Oben in der Titelleiste gibt es die Suche „Portionen von anderen suchen“ (am Handy hinter der Lupe). Dort erscheinen nur Portionen, die ihr Besitzer selbst freigegeben hat: **Teilen → „In der Suche zeigen“** (dafür braucht es ein Konto).
 
 - Öffentlich gespeichert wird nur eine Kopie mit Name, Vokabeln und Bildauswahl. Eigene Fotos, der Übungsstand und die E-Mail-Adresse werden **nicht** geteilt; wer eine Portion freigegeben hat, sehen andere nicht.
 - Ändert der Besitzer die Portion, wird die Kopie in der Suche ein paar Sekunden später nachgeführt. Schalter aus oder Portion löschen entfernt sie aus der Suche.

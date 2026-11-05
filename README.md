@@ -67,7 +67,7 @@ Piktogramme: Sergio Palao, ARASAAC (https://arasaac.org), Eigentum der Regierung
 Ohne Anmeldung wird alles nur im Browser gespeichert (localStorage).
 Mit **Anmelden** (oben rechts, mit E-Mail-Adresse und Passwort) werden deine Portionen in deinem Konto gespeichert und sind auf jedem Gerät da. Das läuft über [Supabase](https://supabase.com), wie bei SmartSlots. Die Einrichtung (Projekt, Tabelle, Schlüssel in `js/config.js`) steht in [`supabase/ANLEITUNG.md`](supabase/ANLEITUNG.md). Die Kinder brauchen kein Konto.
 
-**Portionen von anderen finden:** Auf der Startseite lassen sich Portionen anderer Lehrpersonen suchen und mit einem Klick übernehmen. Erscheinen tun dort nur Portionen, die ihr Besitzer unter Teilen → „In der Suche zeigen“ freigegeben hat (nur Vokabeln und Bildauswahl, keine eigenen Fotos).
+**Portionen von anderen finden:** Über die Suche oben in der Titelleiste (am Handy die Lupe) lassen sich Portionen anderer Lehrpersonen suchen und mit einem Klick übernehmen. Erscheinen tun dort nur Portionen, die ihr Besitzer unter Teilen → „In der Suche zeigen“ freigegeben hat (nur Vokabeln und Bildauswahl, keine eigenen Fotos).
 
 ## Online stellen (GitHub Pages)
 

@@ -28,6 +28,8 @@ const actions = {
   'cloud-sync': () => cloudSync(),
   'pw-forgot': () => forgotPassword(),
   'pub-open': (el) => openPublicPreview(+el.dataset.i),
+  'search-open': () => openTopSearch(),
+  'search-close': () => closeTopSearch(),
   'pub-take': (el) => takePublicSet(+el.dataset.i),
   logout: async () => {
     closeModal(true);
@@ -360,6 +362,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && ui.qrFull) { closeQRFull(); return; }
+  if (e.key === 'Escape' && !ui.modal && (pubPopOpen() || $('.topbar.searching'))) { closeTopSearch(); return; }
   if (e.key === 'Escape' && ui.modal) { closeModal(); return; }
   if (ui.modal) return;
   const tag = (e.target.tagName || '').toLowerCase();
@@ -430,6 +433,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 async function boot() {
   loadDB();
   renderShell();
+  bindTopSearch();
   initClaude();
   window.addEventListener('load', initClaude);
   setTimeout(initClaude, 1500);

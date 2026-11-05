@@ -67,6 +67,7 @@ function renderShell() {
         </button>
         <nav class="crumbs" id="crumbs" aria-label="Wo du gerade bist"></nav>
         <div class="topbar-actions">
+          ${searchSlotHTML()}
           <span id="account-slot">${accountButtonHTML()}</span>
           <button class="icon-btn" data-action="settings" aria-label="Einstellungen" title="Einstellungen">${icon('sliders')}</button>
         </div>
@@ -247,7 +248,6 @@ function viewHome() {
         <h2 id="lib-title">Meine Vokabelportionen</h2>
         ${libraryNote()}
         ${sets.length ? `<ul class="lib-list">${sets.map(libItem).join('')}</ul>` : '<p class="empty">Noch keine Portion gespeichert. Füge links deine Vokabeln ein – sie bleiben in diesem Browser gespeichert.</p>'}
-        ${publicSearchHTML()}
       </aside>
     </div>
   </section>`;
@@ -274,7 +274,6 @@ function libItem(s) {
 
 function bindHome() {
   bindBoom();
-  bindPublicSearch();
   const ta = $('#vocab-input'), name = $('#set-name');
   const update = () => { ui.draft.text = ta.value; renderPreview(); };
   ta.addEventListener('input', debounce(update, 120));

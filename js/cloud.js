@@ -582,54 +582,83 @@ async function publicSearch(q) {
   return (data || []).filter((r) => r && Array.isArray(r.words) && r.words.length);
 }
 
-function publicSearchHTML() {
+/** Suchfeld in der Titelleiste (am Handy hinter der Lupe) */
+function searchSlotHTML() {
   if (!cloudConfigured()) return '';
-  return `<section class="pub-search" aria-labelledby="pub-title">
-    <h3 class="lib-sub" id="pub-title">${icon('search')} Portionen von anderen finden</h3>
-    <form class="search-row" id="pub-form" role="search" autocomplete="off">
-      <input id="pub-q" type="search" placeholder="Thema oder Wort, z. B. Unit 3, animals" aria-label="Portionen von anderen suchen" value="${esc(pub.q)}">
-      <button class="btn secondary" type="submit">Suchen</button>
+  return `<div class="top-search" id="top-search">
+    <button type="button" class="icon-btn search-toggle" data-action="search-open" aria-label="Portionen von anderen suchen" title="Portionen von anderen suchen">${icon('search')}</button>
+    <form class="top-search-form" id="pub-form" role="search" autocomplete="off">
+      ${icon('search')}
+      <input id="pub-q" type="search" placeholder="Portionen von anderen suchen" aria-label="Portionen von anderen suchen" aria-controls="pub-pop" aria-expanded="false" enterkeyhint="search">
+      <button type="button" class="icon-btn subtle search-close" data-action="search-close" aria-label="Suche schließen">${icon('x')}</button>
     </form>
-    <div id="pub-results" class="pub-results" aria-live="polite">${pub.results.length ? pubResultsHTML() : ''}</div>
-  </section>`;
+    <div class="pub-pop" id="pub-pop" hidden><div id="pub-results" aria-live="polite"></div></div>
+  </div>`;
 }
 function pubResultsHTML() {
-  if (!pub.results.length) return `<p class="muted small">${pub.q ? `Nichts gefunden für „${esc(pub.q)}“. Probiere ein anderes Wort.` : 'Noch keine Portionen in der Suche.'}</p>`;
-  return `<ul class="lib-list">${pub.results.map((r, i) => {
+  const head = pub.q ? `Treffer für „${esc(pub.q)}“` : 'Neu in der Suche';
+  if (!pub.results.length) {
+    return `<p class="pub-empty">${pub.q ? `Nichts gefunden für „${esc(pub.q)}“.` : 'Noch keine Portionen in der Suche.'}
+      <small>Hier erscheinen nur Portionen, die jemand unter Teilen → „In der Suche zeigen“ freigegeben hat.</small></p>`;
+  }
+  return `<p class="pub-head">${head}</p><ul class="lib-list">${pub.results.map((r, i) => {
     const sample = r.words.slice(0, 4).map((w) => w[0]).join(', ');
     return `<li class="lib-item"><button class="lib-open" data-action="pub-open" data-i="${i}">
       <span class="lib-text"><strong>${esc(r.name)}</strong><small>${r.word_count || r.words.length} Vokabeln · ${esc(sample)}${r.words.length > 4 ? ' …' : ''}</small></span>
     </button></li>`;
   }).join('')}</ul>`;
 }
-function bindPublicSearch() {
+const pubPopOpen = () => !!$('#pub-pop') && !$('#pub-pop').hidden;
+function showPubPop(show) {
+  const pop = $('#pub-pop'), q = $('#pub-q');
+  if (!pop) return;
+  pop.hidden = !show;
+  q?.setAttribute('aria-expanded', String(show));
+}
+function openTopSearch() {
+  $('.topbar')?.classList.add('searching');
+  const q = $('#pub-q');
+  q?.focus();
+}
+function closeTopSearch() {
+  showPubPop(false);
+  $('.topbar')?.classList.remove('searching');
+  $('#pub-q')?.blur();
+}
+function bindTopSearch() {
   const form = $('#pub-form'), input = $('#pub-q');
   if (!form) return;
   const run = async (q) => {
     const box = $('#pub-results');
     const seq = ++pub.seq;
     pub.q = q.trim();
-    box.innerHTML = '<p class="muted small"><span class="spinner"></span> Suche …</p>';
+    showPubPop(true);
+    box.innerHTML = '<p class="pub-empty"><span class="spinner"></span> Suche …</p>';
     try {
       const res = await publicSearch(pub.q);
-      if (seq !== pub.seq || !$('#pub-results')) return;
+      if (seq !== pub.seq) return;
       pub.results = res;
-      $('#pub-results').innerHTML = pubResultsHTML();
+      box.innerHTML = pubResultsHTML();
     } catch (e) {
-      if (seq !== pub.seq || !$('#pub-results')) return;
-      $('#pub-results').innerHTML = `<p class="warn">${esc(cloudErrorText(e))}</p>`;
+      if (seq !== pub.seq) return;
+      box.innerHTML = `<p class="warn">${esc(cloudErrorText(e))}</p>`;
     }
   };
   form.addEventListener('submit', (e) => { e.preventDefault(); run(input.value); });
-  const live = debounce(() => { if (input.value.trim().length >= 2) run(input.value); }, 450);
+  const live = debounce(() => { const v = input.value.trim(); if (v.length >= 2 || !v) run(v); }, 400);
   input.addEventListener('input', live);
-  input.addEventListener('focus', () => { if (!pub.results.length && !pub.seq) run(''); }, { once: true });
+  input.addEventListener('focus', () => { if (pub.seq) showPubPop(true); else run(''); });
+  // Klick daneben schließt die Trefferliste
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('#top-search') && !e.target.closest('.modal-wrap')) closeTopSearch();
+  });
 }
 
 /** Vorschau einer gefundenen Portion, mit „Übernehmen“ */
 function openPublicPreview(i) {
   const r = pub.results[i];
   if (!r) return;
+  closeTopSearch();
   openModal(`
     <header class="modal-head"><div><p class="eyebrow">${flag()} ${r.word_count || r.words.length} Vokabeln</p><h2>${esc(r.name)}</h2></div>
       <button type="button" class="icon-btn" data-action="close-modal" aria-label="Schließen">${icon('x')}</button></header>
@@ -664,7 +693,7 @@ function publishBoxHTML(set) {
   if (!cloudConfigured()) return '';
   return `<div class="pub-box">
     <label class="switch"><input type="checkbox" id="pub-on" ${set.published ? 'checked' : ''} ${cloud.user ? '' : 'disabled'}><span>In der Suche zeigen</span></label>
-    <p class="muted small">Dann finden andere „${esc(set.name)}“ unter „Portionen von anderen finden“ und können sie übernehmen. Geteilt werden nur die Vokabeln und die Bildauswahl – keine eigenen Fotos, kein Übungsstand, nicht deine E-Mail-Adresse.</p>
+    <p class="muted small">Dann finden andere „${esc(set.name)}“ über die Suche oben und können sie übernehmen. Geteilt werden nur die Vokabeln und die Bildauswahl – keine eigenen Fotos, kein Übungsstand, nicht deine E-Mail-Adresse.</p>
     ${cloud.user ? '' : '<p class="small">Dafür musst du angemeldet sein. <button type="button" class="link-btn" data-action="login">Anmelden</button></p>'}
     <p class="form-error" id="pub-error" role="alert"></p>
   </div>`;
