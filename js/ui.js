@@ -210,7 +210,7 @@ function viewHome() {
   <section class="home">
     <div class="home-intro">
       <p class="eyebrow">${flag()} Englisch-Vokabeln üben</p>
-      <h1>Aus deiner Vokabelliste werden <mark>Lernkarten</mark>, Spiele und ein Test.</h1>
+      <h1>Du brauchst nur deine Vokabelliste und <span class="boom">BOOM<svg class="boom-burst" viewBox="44 -4 34 28" aria-hidden="true"><g stroke-linecap="round"><path d="M54 13.1L52 2.3" stroke="#EC4899" stroke-width="4"/><path d="M57.8 13.2L63.3 1.9" stroke="#FFB703" stroke-width="4.4"/><path d="M60.3 16.2L70 11" stroke="#EC4899" stroke-width="4"/><path d="M61.5 19.7L68.9 20.5" stroke="#FFB703" stroke-width="3.6"/><path d="M50.2 14.7L45.7 10.6" stroke="#FFB703" stroke-width="3.6"/></g><circle cx="71" cy="2.5" r="1.5" fill="#EC4899"/></svg></span> werden daraus ganz einfach <mark>Lernkarten, Übungen, Spiele und Tests.</mark></h1>
       <p class="lead">Vokabeln einfügen, fertig. Die Bilder für die Karten sucht Vokaboom selbst.</p>
     </div>
     <div class="home-grid">

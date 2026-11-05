@@ -247,7 +247,12 @@ input:focus, textarea:focus, select:focus { border-color: var(--brand); outline:
 
 /* ---------- Startseite ---------- */
 .home-intro { max-width: 50rem; margin: .4rem 0 2rem; display: grid; gap: .8rem; }
-.home-intro h1 { font-size: clamp(2.1rem, 5.4vw, 3.6rem); }
+.home-intro { max-width: 56rem; }
+.home-intro h1 { font-size: clamp(1.9rem, 4.6vw, 3.2rem); line-height: 1.12; }
+.boom { position: relative; display: inline-block; padding-right: .36em; letter-spacing: .01em; background: linear-gradient(100deg, var(--brand), var(--brand-2) 55%, var(--pink)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.boom-burst { position: absolute; right: -.04em; top: -.02em; width: .46em; height: auto; overflow: visible; }
+@media (prefers-reduced-motion: no-preference) { .boom-burst { animation: boom-in .7s .3s ease both; transform-origin: 10% 90%; } }
+@keyframes boom-in { 0% { transform: scale(.2) rotate(-20deg); opacity: 0; } 60% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
 .home-intro .lead { font-size: 1.12rem; color: var(--ink-2); max-width: 38rem; }
 .home-grid { display: grid; gap: 22px; align-items: start; }
 @media (min-width: 940px) { .home-grid { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); } }
