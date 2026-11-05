@@ -234,7 +234,7 @@ function viewHome() {
     <div class="home-intro">
       <p class="eyebrow">${flag()} Englisch-Vokabeln üben</p>
       <h1>Nimm deine Vokabelliste und ${boomHTML()} werden daraus ganz einfach <mark>Lernkarten, Übungen, Spiele und Tests.</mark></h1>
-      <p class="lead">Vokabeln einfügen, fertig. Und Bildvorschläge für die Karten macht dir Vokaboom auch gleich schon.</p>
+      <p class="lead">Vokabeln einfügen und fertig. Und Bildvorschläge für die Karten macht dir Vokaboom auch gleich schon.</p>
     </div>
     <div class="home-grid">
       <form class="panel new-set" id="new-set-form" autocomplete="off">
