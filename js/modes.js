@@ -652,7 +652,7 @@ function markSpeakOk(w) {
   speakM.timer = setTimeout(() => { if (ui.view === 'speak' && speakM.state === 'ok') nextSpeak(); }, AUTO_NEXT_MS + 300);
 }
 
-/* Lauterkennung (Versuch): Laut für Laut auf dem Gerät prüfen */
+/* Lauterkennung: Laut für Laut auf dem Gerät prüfen */
 async function doListenPhonetic(set, w) {
   speakM.usingPh = true;
   try {

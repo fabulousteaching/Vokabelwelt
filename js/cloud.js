@@ -73,6 +73,7 @@ async function cloudClient() {
     // Supabase rät, hier nicht direkt auf Supabase zu warten
     if (ev === 'SIGNED_OUT' && cloud.uid) setTimeout(() => { forgetCloudUser(); toast('Du wurdest abgemeldet.'); }, 0);
     if (ev === 'PASSWORD_RECOVERY' && session?.user) setTimeout(() => { setCloudUser(session.user); renderAccountSlot(); openNewPassword(); }, 0);
+    if (ev === 'USER_UPDATED' && session?.user && cloud.uid) setTimeout(() => { cloud.user = session.user.email || cloud.user; renderAccountSlot(); }, 0);
   });
   return cloud.client;
 }
@@ -98,6 +99,13 @@ async function cloudInit() {
   // Kommt man über einen Link aus einer E-Mail (Konto bestätigen, Passwort vergessen)?
   const hp = new URLSearchParams(location.hash.slice(1));
   const fromMail = hp.has('access_token') ? (hp.get('type') || 'link') : '';
+  if (hp.has('message') && !hp.has('access_token')) {
+    // Neue E-Mail-Adresse: erster von zwei Bestätigungs-Links angeklickt
+    try { history.replaceState(null, '', siteUrl() + location.search); } catch { /* */ }
+    toast(/other email/i.test(hp.get('message'))
+      ? 'Bestätigt! Klicke jetzt noch auf den Link in der E-Mail an die andere Adresse – dann gilt die neue E-Mail-Adresse.'
+      : hp.get('message'));
+  }
   if (hp.has('error') || hp.has('error_code') || hp.has('error_description')) {
     const code = hp.get('error_code') || hp.get('error') || '';
     try { history.replaceState(null, '', siteUrl() + location.search); } catch { /* */ }
@@ -116,6 +124,7 @@ async function cloudInit() {
       setCloudUser(data.session.user);
       renderAccountSlot();
       if (fromMail === 'signup') toast('Deine E-Mail-Adresse ist bestätigt. Willkommen bei Vokabelwelt!');
+      if (fromMail === 'email_change') toast(`Deine neue E-Mail-Adresse ${data.session.user.email} ist bestätigt.`);
       await cloudSync();
     }
   } catch (e) {
@@ -160,6 +169,25 @@ async function cloudLogout() {
   saveNow();
   try { await cloud.client?.auth.signOut({ scope: 'local' }); } catch { /* */ }
   return removed;
+}
+
+/** E-Mail-Adresse ändern. Liefert 'done' (gilt sofort) oder 'confirm' (Bestätigungs-E-Mail unterwegs). */
+async function cloudChangeEmail(newEmail, password) {
+  const c = await cloudClient();
+  // Zur Sicherheit: aktuelles Passwort prüfen (z. B. an einem offenen Schulcomputer)
+  const check = await c.auth.signInWithPassword({ email: cloud.user, password });
+  if (check.error) {
+    if (check.error.code === 'invalid_credentials' || /invalid login/i.test(check.error.message)) throw Object.assign(new Error('pw'), { code: 'wrong_password' });
+    throw check.error;
+  }
+  const { data, error } = await c.auth.updateUser({ email: newEmail }, { emailRedirectTo: siteUrl() });
+  if (error) throw error;
+  if (data?.user?.email && normEmail(data.user.email) === newEmail) {
+    setCloudUser(data.user);
+    renderAccountSlot();
+    return 'done';
+  }
+  return 'confirm';
 }
 
 async function cloudChangePassword(password) {
@@ -300,6 +328,7 @@ function cloudErrorText(e) {
   if (/error sending|sending (recovery|confirmation)|smtp/i.test(msg)) return 'Die E-Mail konnte nicht verschickt werden. Dafür muss in Supabase ein E-Mail-Versand (SMTP) eingerichtet sein – siehe supabase/ANLEITUNG.md.';
   if (code === 'weak_password' || /password.*(least|short|weak|characters)/i.test(msg)) return 'Das Passwort ist zu schwach. Nimm mindestens 8 Zeichen, am besten mit Buchstaben und Ziffern.';
   if (code === 'same_password') return 'Das ist schon dein Passwort.';
+  if (code === 'wrong_password') return 'Das aktuelle Passwort stimmt nicht.';
   if (code === 'signup_disabled' || /signups? not allowed/i.test(msg)) return 'Neue Konten sind gerade ausgeschaltet. Frag die Person, die Vokabelwelt eingerichtet hat.';
   if (code === 'email_address_invalid' || code === 'email_address_not_authorized' || /email.*invalid|invalid.*email|not authorized/i.test(msg)) return 'An diese E-Mail-Adresse kann Supabase gerade nichts schicken. Prüf die Adresse – oder richte in Supabase einen E-Mail-Versand (SMTP) ein.';
   if (code === 'over_request_rate_limit' || e?.status === 429) return 'Zu viele Versuche. Warte einen Moment und versuch es nochmal.';
@@ -465,7 +494,44 @@ function openAccount() {
         <p class="form-error" id="pw-error" role="alert"></p>
         <button type="submit" class="btn small primary">Speichern</button>
       </form>
+    </details>
+    <details class="pw-change"><summary>E-Mail-Adresse ändern</summary>
+      <form id="mail-form" class="auth-form" novalidate>
+        <label class="field" for="mail-new"><span class="label">Neue E-Mail-Adresse</span>
+          <input id="mail-new" type="email" inputmode="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="200" placeholder="name@schule.ch"></label>
+        <label class="field" for="mail-pw"><span class="label">Aktuelles Passwort</span><input id="mail-pw" type="password" autocomplete="current-password"></label>
+        <p class="form-error" id="mail-error" role="alert"></p>
+        <p class="form-info" id="mail-info" role="status"></p>
+        <button type="submit" class="btn small primary" id="mail-submit">E-Mail-Adresse ändern</button>
+      </form>
     </details>`, { label: 'Konto' });
+  $('#mail-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#mail-error'), info = $('#mail-info'), btn = $('#mail-submit');
+    const email = normEmail($('#mail-new').value), pw = $('#mail-pw').value;
+    const problem = emailProblem(email) || (email === normEmail(cloud.user) ? 'Das ist schon deine E-Mail-Adresse.' : '') || (!pw ? 'Gib zur Sicherheit dein aktuelles Passwort ein.' : '');
+    if (problem) { err.textContent = problem; info.textContent = ''; return; }
+    err.textContent = ''; info.textContent = '';
+    btn.disabled = true;
+    try {
+      const res = await cloudChangeEmail(email, pw);
+      if (res === 'done') {
+        openAccount();
+        toast(`Deine E-Mail-Adresse ist jetzt ${email}. Melde dich ab jetzt damit an.`);
+        return;
+      }
+      if (!$('#mail-info')) return;
+      $('#mail-pw').value = '';
+      info.textContent = `Fast geschafft! Wir haben eine E-Mail an ${email} geschickt (eventuell auch eine an deine bisherige Adresse). Klicke auf den Link darin – erst dann gilt die neue Adresse. Bis dahin meldest du dich weiter mit ${cloud.user} an.`;
+    } catch (ex) {
+      if (!$('#mail-error')) return;
+      err.textContent = ['email_exists', 'user_already_exists'].includes(ex?.code) || /already (registered|exists)/i.test(ex?.message || '')
+        ? 'Diese E-Mail-Adresse gehört schon zu einem anderen Konto.'
+        : cloudErrorText(ex);
+    } finally {
+      if ($('#mail-submit')) btn.disabled = false;
+    }
+  });
   $('#pw-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const pw = $('#pw-new').value, err = $('#pw-error');

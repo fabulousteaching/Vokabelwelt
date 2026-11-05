@@ -955,11 +955,11 @@ function openSettings() {
   });
 }
 
-/* ---------- Lauterkennung (Versuch) ---------- */
+/* ---------- Lauterkennung ---------- */
 function phoneticSettingsHTML(s) {
   const c = { on: false, passMin: 60, ...(s.phonetic || {}) };
   return `<div class="field ph-box">
-    <span class="label">Lauterkennung (Versuch)</span>
+    <span class="label">Lauterkennung</span>
     <p class="muted small">Prüft jeden einzelnen Laut statt nur das Wort. So fällt auch auf, wenn ein Wort so ausgesprochen wird, wie es geschrieben ist. Läuft ganz auf diesem Gerät, keine Aufnahme verlässt es. Beim ersten Mal werden ca. ${PH.MB} MB geladen und gespeichert. Auf älteren Handys kann es langsam sein.</p>
     <label class="switch"><input type="checkbox" id="ph-on" ${c.on ? 'checked' : ''}><span>Lauterkennung einschalten</span></label>
     <div class="row"><button type="button" class="btn small secondary" data-action="ph-load">${icon('upload')} Jetzt laden</button><span class="small" id="ph-status"></span></div>

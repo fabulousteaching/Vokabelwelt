@@ -69,6 +69,7 @@ Nach dem Speichern (Commit) ist die Anmeldung nach ein bis zwei Minuten auf GitH
 - Auf einem anderen Gerät anmelden: Die Portionen werden geholt.
 - **Abmelden** entfernt die Portionen von diesem Gerät (sie bleiben im Konto). Praktisch auf Schulcomputern, die mehrere Personen benutzen.
 - Ohne Internet geht alles weiter wie bisher; gespeichert wird beim nächsten Mal mit Verbindung.
+- Unter **Konto** (oben rechts auf deinen Namen) lassen sich **Passwort** und **E-Mail-Adresse ändern**. Für eine neue E-Mail-Adresse fragt Vokabelwelt zur Sicherheit das aktuelle Passwort ab. Ist «Confirm email» ausgeschaltet, gilt die neue Adresse sofort. Ist es eingeschaltet, schickt Supabase einen Bestätigungs-Link an die neue Adresse (mit «Secure email change» auch einen an die bisherige); erst nach dem Klick gilt die neue Adresse.
 
 ## Passwort vergessen
 

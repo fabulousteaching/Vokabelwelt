@@ -75,7 +75,7 @@ Mit **Anmelden** (oben rechts, mit E-Mail-Adresse und Passwort) werden deine Por
 
 Man kann `index.html` auch einfach per Doppelklick öffnen. Für Spracherkennung und Teilen-Links ist die Online-Version aber besser.
 
-## Lauterkennung (Versuch)
+## Lauterkennung
 
 In den Einstellungen lässt sich eine **Lauterkennung** einschalten. Sie fragt nicht, welches *Wort* gesagt wurde, sondern prüft jeden einzelnen *Laut*:
 
@@ -104,7 +104,7 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt:
 | `js/picture-data.js` | Bildwörterbuch (Emoji/Farbe ↔ Englisch/Deutsch) |
 | `js/emoji-catalog.js` | alle gängigen Emojis mit deutschen und englischen Namen ([emojibase-data](https://github.com/milesj/emojibase) 17, MIT, Namen aus Unicode CLDR) |
 | `js/core.js` | Parser, Antwortprüfung, Speicher, Bildsuche, Vorlesen, Spracherkennung |
-| `js/phonetic.js` | Lauterkennung (Versuch): Laut für Laut auf dem Gerät |
+| `js/phonetic.js` | Lauterkennung: Laut für Laut auf dem Gerät |
 | `js/ui.js` | Startseite, Übersicht, Dialoge |
 | `js/modes.js` | Lernkarten, Zuordnen, Aussprechen, Hören & Schreiben, Test |
 | `js/cloud.js` | Anmelden und Speichern im Konto (Supabase) |
