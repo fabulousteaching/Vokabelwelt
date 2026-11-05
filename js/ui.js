@@ -940,7 +940,7 @@ function openSettings() {
       <hr>
       <p class="muted small">${cloud.user ? `Angemeldet als <strong>${esc(cloud.user)}</strong>: Deine Portionen werden in deinem Konto gespeichert.` : 'Alle Vokabeln und Ergebnisse werden in diesem Browser gespeichert. Mit „Anmelden“ (oben) speicherst du sie in deinem Konto.'}</p>
       <button type="button" class="btn small danger-ghost" data-action="wipe">${icon('trash')} Alles löschen</button>
-      <p class="muted small app-version">Vokaboom · Version ${esc(typeof APP_VERSION === 'string' && APP_VERSION ? APP_VERSION.replace(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$3.$2.$1 $4:$5') : 'lokal')}</p>
+      <p class="muted small app-version">Vokaboom · Version ${esc(typeof APP_VERSION === 'string' && APP_VERSION ? APP_VERSION.replace(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?$/, '$3.$2.$1 $4:$5') : 'lokal')}</p>
     </div>`, { label: 'Einstellungen' });
   const m = ui.modal.el;
   fillMicSelect();
