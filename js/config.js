@@ -10,7 +10,7 @@
    loginDomain: Aus dem Benutzernamen „anna“ wird intern die Adresse vokabelwelt.anna@<loginDomain>.
    Dorthin wird nie etwas geschickt. Nach dem ersten Konto nicht mehr ändern, sonst passen die Logins nicht mehr. */
 window.VOKABELWELT_CONFIG = {
-  supabaseUrl: '',   // z. B. 'https://abcdefghijkl.supabase.co'
+  supabaseUrl: 'https://cppgdrwpwcshtbavesrm.supabase.co',
   supabaseKey: '',   // «Publishable key» (sb_publishable_…) oder «anon public», darf öffentlich sein
   loginDomain: 'smartslots.ch',
 };
