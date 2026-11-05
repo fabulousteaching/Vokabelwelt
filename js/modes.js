@@ -1,4 +1,4 @@
-/* Vokabelwelt – Übungsarten: Lernkarten, Zuordnen, Aussprechen, Hören & Schreiben, Test */
+/* Vokaboom – Übungsarten: Lernkarten, Zuordnen, Aussprechen, Hören & Schreiben, Test */
 'use strict';
 
 const wordsById = (set, ids) => ids.map((id) => set.words.find((w) => w.id === id)).filter(Boolean);

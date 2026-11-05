@@ -1,4 +1,4 @@
-/* Vokabelwelt – Gestaltung
+/* Vokaboom – Gestaltung
    Hell, freundlich und klar: weiche Farbverläufe im Hintergrund, große runde Karten, kräftiges Indigo
    als Hauptfarbe, jede Übung mit eigener Farbe. Wörter in Andika (gut lesbar für Kinder). */
 :root {
@@ -23,6 +23,7 @@
   --on-brand: #FFFFFF;
   --amber: #FFB703;
   --amber-wash: #FFF4D6;
+  --pink: #EC4899;
   --green: #0E9F6E;
   --green-ink: #046C4E;
   --green-wash: #DEF7EC;
@@ -59,7 +60,7 @@
     --paper: #181B33; --paper-2: #1E2240; --paper-back: #241F33; --sunken: #232746; --sunken-2: #2D3255;
     --ink: #EEF0FF; --ink-2: #BDC2E3; --ink-3: #8C92B8; --line: #2C3154; --line-2: #3A4068;
     --brand: #8B85FF; --brand-2: #B18CFF; --brand-ink: #C4C0FF; --brand-wash: #2A2A5C; --on-brand: #0E1022;
-    --amber: #FFC53D; --amber-wash: #3A2F12;
+    --amber: #FFC53D; --amber-wash: #3A2F12; --pink: #FF7EB3;
     --green: #34D399; --green-ink: #8CF0C6; --green-wash: #10382C; --on-green: #062016;
     --red: #FF6B85; --red-wash: #45192A;
     --orange: #FFA552; --orange-ink: #FFC690; --orange-wash: #43290F;
@@ -78,7 +79,7 @@
   --paper: #181B33; --paper-2: #1E2240; --paper-back: #241F33; --sunken: #232746; --sunken-2: #2D3255;
   --ink: #EEF0FF; --ink-2: #BDC2E3; --ink-3: #8C92B8; --line: #2C3154; --line-2: #3A4068;
   --brand: #8B85FF; --brand-2: #B18CFF; --brand-ink: #C4C0FF; --brand-wash: #2A2A5C; --on-brand: #0E1022;
-  --amber: #FFC53D; --amber-wash: #3A2F12;
+  --amber: #FFC53D; --amber-wash: #3A2F12; --pink: #FF7EB3;
   --green: #34D399; --green-ink: #8CF0C6; --green-wash: #10382C; --on-green: #062016;
   --red: #FF6B85; --red-wash: #45192A;
   --orange: #FFA552; --orange-ink: #FFC690; --orange-wash: #43290F;
@@ -158,11 +159,11 @@ hr { border: 0; border-top: 1px solid var(--line); margin: .4rem 0; }
 .topbar-inner { max-width: 1160px; margin: 0 auto; display: flex; align-items: center; gap: .75rem; min-height: 64px; }
 .brand { display: flex; align-items: center; gap: .6rem; background: none; border: 0; padding: .3rem .2rem; color: var(--ink); border-radius: 14px; }
 .brand-name { font-family: var(--font-display); font-weight: 800; font-size: 1.38rem; letter-spacing: -.03em; }
-.brand-mark { position: relative; width: 36px; height: 36px; flex: none; }
-.brand-mark i { position: absolute; border-radius: 9px; }
-.brand-mark i:nth-child(1) { inset: 4px 8px 6px 0; background: var(--amber); transform: rotate(-12deg); }
-.brand-mark i:nth-child(2) { inset: 2px 0 4px 8px; background: linear-gradient(135deg, var(--brand), var(--brand-2)); box-shadow: 0 6px 14px -6px var(--brand); }
-.brand-mark i:nth-child(3) { left: 15px; top: 12px; width: 13px; height: 8px; border-radius: 0; border: solid #fff; border-width: 0 0 3px 3px; transform: rotate(-45deg); }
+.brand-mark { display: block; width: 42px; height: 41px; flex: none; }
+.brand-mark svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.brand:hover .brand-mark svg g, .brand:hover .brand-mark svg circle { animation: boom .5s ease; transform-origin: 55px 19px; }
+@keyframes boom { 0% { transform: scale(.6); opacity: .4; } 60% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+.brand-name .hot { background: linear-gradient(100deg, var(--brand), var(--brand-2) 55%, var(--pink)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .crumbs { display: flex; align-items: center; gap: .3rem; min-width: 0; flex: 1; overflow: hidden; }
 .crumb { display: inline-flex; align-items: center; gap: .45rem; background: none; border: 0; padding: .35rem .6rem; border-radius: 10px; color: var(--ink-2); font-weight: 500; min-width: 0; }
 .crumb span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

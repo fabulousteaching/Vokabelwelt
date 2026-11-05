@@ -1,4 +1,4 @@
-/* Vokabelwelt – Lauterkennung
+/* Vokaboom – Lauterkennung
  *
  * Statt die Spracherkennung des Browsers zu fragen, welches WORT gesagt wurde, prüft diese Variante
  * die einzelnen LAUTE – direkt auf dem Gerät, ohne Cloud:

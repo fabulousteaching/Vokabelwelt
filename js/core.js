@@ -1,4 +1,4 @@
-/* Vokabelwelt – Kern: Hilfsfunktionen, Sprache, Parser, Speicher, Bilder, Audio, Spracherkennung */
+/* Vokaboom – Kern: Hilfsfunktionen, Sprache, Parser, Speicher, Bilder, Audio, Spracherkennung */
 'use strict';
 
 /* ---------------- Hilfsfunktionen ---------------- */
@@ -337,7 +337,7 @@ function loadDB() {
     db.settings.voice = { en: db.settings.voice?.en || '' };
     db.sets = (db.sets || []).filter((s) => s && Array.isArray(s.words));
     db.sets.forEach((s) => {
-      s.lang = 'en'; // Vokabelwelt ist nur noch für Englisch
+      s.lang = 'en'; // Vokaboom ist nur noch für Englisch
       s.words.forEach((w) => {
         if (w.picStatus === 'pending') w.picStatus = 'stale';
         if (w.pic && w.pic.kind === 'ai') { w.pic = null; w.picStatus = 'stale'; } // KI-Bilder gibt es nicht mehr
@@ -1006,9 +1006,9 @@ function micErrorText(code, lang) {
     case 'busy':
       return 'Das Mikrofon war noch belegt. Versuch es gleich noch einmal.';
     case 'not-supported':
-      return isIOSOtherBrowser ? 'Auf iPhone und iPad klappt die Spracherkennung nur in Safari. Öffne Vokabelwelt bitte in Safari.' : `Dieser Browser kann keine Sprache erkennen. Nimm ${bestBrowsers()}.`;
+      return isIOSOtherBrowser ? 'Auf iPhone und iPad klappt die Spracherkennung nur in Safari. Öffne Vokaboom bitte in Safari.' : `Dieser Browser kann keine Sprache erkennen. Nimm ${bestBrowsers()}.`;
     default:
-      return isIOSOtherBrowser ? 'Auf iPhone und iPad klappt die Spracherkennung am zuverlässigsten in Safari. Öffne Vokabelwelt bitte in Safari.' : `Versuch es noch einmal. Wenn es weiter nicht klappt, nimm ${bestBrowsers()}.`;
+      return isIOSOtherBrowser ? 'Auf iPhone und iPad klappt die Spracherkennung am zuverlässigsten in Safari. Öffne Vokaboom bitte in Safari.' : `Versuch es noch einmal. Wenn es weiter nicht klappt, nimm ${bestBrowsers()}.`;
   }
 }
 

@@ -1,4 +1,4 @@
-# Vokabelwelt
+# Vokaboom
 
 Ein Vokabelspiel für Englisch. Vokabeln einfügen, und daraus werden:
 
@@ -21,7 +21,7 @@ to swim - schwimmen
 house	Haus          (Tabelle aus Word/Excel, mit Tabulator)
 ```
 
-Ist Deutsch links, erkennt Vokabelwelt das meistens selbst. Sonst hilft der Knopf „Spalten tauschen“.
+Ist Deutsch links, erkennt Vokaboom das meistens selbst. Sonst hilft der Knopf „Spalten tauschen“.
 
 Regeln beim Schreiben (grün = richtig, orange = fast richtig, ein halber Punkt, rot = falsch):
 
@@ -51,7 +51,7 @@ Grundsatz: lieber kein Bild als ein missverständliches.
 Tipps für eindeutige Bilder:
 
 - Schreib die deutsche Übersetzung so eindeutig wie möglich, nur **eine** Bedeutung pro Zeile („bat – Fledermaus“, nicht „bat – Fledermaus, Schläger“). Die Bildsuche richtet sich nach dem deutschen Wort.
-- Nomen mit Artikel schreiben („der Hund“), dann erkennt Vokabelwelt, dass es ein Nomen ist.
+- Nomen mit Artikel schreiben („der Hund“), dann erkennt Vokaboom, dass es ein Nomen ist.
 - Für alles andere: Karte antippen → „Mehr …“ → eigenes Suchwort, Emoji oder eigenes Foto.
 
 Ein Klick auf eine Karte öffnet den Bild-Dialog mit allen Quellen (Piktogramm, Clipart, Emoji mit Kategorien und Suche, eigenes Bild). Unter „Eigenes Bild“ gibt es außerdem Knöpfe für **Google Bilder** und **Pixabay**: Bild dort kopieren (Rechtsklick → „Bild kopieren“, am iPhone lange drücken → „Kopieren“) und im Feld einfügen. Eigene Fotos lassen sich auch hochladen oder mit der Tablet-Kamera aufnehmen.
@@ -70,8 +70,8 @@ Mit **Anmelden** (oben rechts, mit E-Mail-Adresse und Passwort) werden deine Por
 ## Online stellen (GitHub Pages)
 
 1. Im Repository auf **Settings → Pages** gehen.
-2. Bei „Build and deployment“ **Deploy from a branch** wählen, den Branch mit Vokabelwelt (z. B. `claude/vokabelwelt-app`) und Ordner **/ (root)**.
-3. Nach ein bis zwei Minuten ist Vokabelwelt unter `https://<benutzername>.github.io/<repository>/` erreichbar.
+2. Bei „Build and deployment“ **Deploy from a branch** wählen, den Branch mit Vokaboom (z. B. `claude/vokabelwelt-app`) und Ordner **/ (root)**.
+3. Nach ein bis zwei Minuten ist Vokaboom unter `https://<benutzername>.github.io/<repository>/` erreichbar.
 
 Man kann `index.html` auch einfach per Doppelklick öffnen. Für Spracherkennung und Teilen-Links ist die Online-Version aber besser.
 
@@ -99,6 +99,7 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt:
 | Datei | Inhalt |
 | --- | --- |
 | `index.html` | Seite |
+| `logo.svg`, `icon.svg`, `apple-touch-icon.png` | Logo, App-Symbol und Symbol für den iPhone-Startbildschirm |
 | `css/styles.css` | Gestaltung |
 | `js/config.js` | Supabase-Adresse und öffentlicher Schlüssel (leer = ohne Anmeldung) |
 | `js/picture-data.js` | Bildwörterbuch (Emoji/Farbe ↔ Englisch/Deutsch) |

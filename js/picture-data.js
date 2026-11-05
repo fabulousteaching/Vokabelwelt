@@ -1,4 +1,4 @@
-/* Vokabelwelt – Offline-Bildwörterbuch
+/* Vokaboom – Offline-Bildwörterbuch
  * Jede Zeile: Bild | Englisch | Deutsch
  * Mehrere Wörter je Sprache mit Komma trennen.
  * Ein Bild ist entweder ein Emoji oder eine Farbe (#rrggbb) für Farbwörter.

@@ -1,4 +1,4 @@
-/* Vokabelwelt – Aktionen und Start */
+/* Vokaboom – Aktionen und Start */
 'use strict';
 
 function startMode(mode, opts = {}) {

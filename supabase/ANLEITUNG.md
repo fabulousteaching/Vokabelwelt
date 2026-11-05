@@ -1,7 +1,7 @@
-# Vokabelwelt mit Anmeldung einrichten
+# Vokaboom mit Anmeldung einrichten
 
-Mit einem Konto speichert Vokabelwelt deine Vokabelportionen bei [Supabase](https://supabase.com) (Datenbank und Anmeldung, gratis für kleine Projekte). Du meldest dich mit **E-Mail-Adresse und Passwort** an und hast deine Portionen auf jedem Gerät.
-Solange in `js/config.js` nichts eingetragen ist, läuft Vokabelwelt ohne Anmeldung, und alles bleibt nur im Browser.
+Mit einem Konto speichert Vokaboom deine Vokabelportionen bei [Supabase](https://supabase.com) (Datenbank und Anmeldung, gratis für kleine Projekte). Du meldest dich mit **E-Mail-Adresse und Passwort** an und hast deine Portionen auf jedem Gerät.
+Solange in `js/config.js` nichts eingetragen ist, läuft Vokaboom ohne Anmeldung, und alles bleibt nur im Browser.
 
 Die Kinder brauchen kein Konto. Sie bekommen die Portionen weiterhin über den QR-Code.
 
@@ -11,7 +11,7 @@ Die Menünamen in Supabase ändern sich ab und zu leicht. Die Wege unten stimmen
 
 1. Auf supabase.com anmelden und **New project** wählen.
 2. Name z. B. `vokabelwelt`. **Region in Europa** wählen (z. B. Frankfurt).
-3. Das Datenbank-Passwort gut aufbewahren (Vokabelwelt braucht es nicht).
+3. Das Datenbank-Passwort gut aufbewahren (Vokaboom braucht es nicht).
 
 ## 2. Tabelle anlegen
 
@@ -44,13 +44,13 @@ Danach unter **Authentication → Rate Limits** die Zahl der E-Mails pro Stunde 
 
 Ebenfalls unter **Authentication → Sign In / Providers → Email** empfohlen:
 
-- **Minimum password length:** 8 (Vokabelwelt verlangt das auch).
+- **Minimum password length:** 8 (Vokaboom verlangt das auch).
 
 Die Texte der E-Mails lassen sich unter **Authentication → Emails** auf Deutsch übersetzen.
 
 **Wer darf ein Konto erstellen?** Mit «Neues Konto» kann sich jede Person, die die Seite kennt, ein Konto machen. Wenn du das nicht willst: Erst dein eigenes Konto erstellen, dann unter **Authentication → Sign In / Providers** die Option **Allow new users to sign up** ausschalten. Weitere Konten (z. B. für Kolleginnen und Kollegen) legst du danach unter **Authentication → Users → Add user → Create new user** an (E-Mail-Adresse, Passwort und **Auto Confirm User** anhaken).
 
-## 5. Schlüssel in Vokabelwelt eintragen
+## 5. Schlüssel in Vokaboom eintragen
 
 Beim Projekt auf **Connect** klicken (oder **Project Settings → API Keys**) und zwei Werte kopieren:
 
@@ -69,11 +69,11 @@ Nach dem Speichern (Commit) ist die Anmeldung nach ein bis zwei Minuten auf GitH
 - Auf einem anderen Gerät anmelden: Die Portionen werden geholt.
 - **Abmelden** entfernt die Portionen von diesem Gerät (sie bleiben im Konto). Praktisch auf Schulcomputern, die mehrere Personen benutzen.
 - Ohne Internet geht alles weiter wie bisher; gespeichert wird beim nächsten Mal mit Verbindung.
-- Unter **Konto** (oben rechts auf deinen Namen) lassen sich **Passwort** und **E-Mail-Adresse ändern**. Für eine neue E-Mail-Adresse fragt Vokabelwelt zur Sicherheit das aktuelle Passwort ab. Ist «Confirm email» ausgeschaltet, gilt die neue Adresse sofort. Ist es eingeschaltet, schickt Supabase einen Bestätigungs-Link an die neue Adresse (mit «Secure email change» auch einen an die bisherige); erst nach dem Klick gilt die neue Adresse.
+- Unter **Konto** (oben rechts auf deinen Namen) lassen sich **Passwort** und **E-Mail-Adresse ändern**. Für eine neue E-Mail-Adresse fragt Vokaboom zur Sicherheit das aktuelle Passwort ab. Ist «Confirm email» ausgeschaltet, gilt die neue Adresse sofort. Ist es eingeschaltet, schickt Supabase einen Bestätigungs-Link an die neue Adresse (mit «Secure email change» auch einen an die bisherige); erst nach dem Klick gilt die neue Adresse.
 
 ## Passwort vergessen
 
-- **Mit E-Mail-Versand:** Im Anmelde-Fenster die E-Mail-Adresse eingeben und auf **Passwort vergessen?** klicken. Der Link in der E-Mail öffnet Vokabelwelt, dort wählt man ein neues Passwort.
+- **Mit E-Mail-Versand:** Im Anmelde-Fenster die E-Mail-Adresse eingeben und auf **Passwort vergessen?** klicken. Der Link in der E-Mail öffnet Vokaboom, dort wählt man ein neues Passwort.
 - **Ohne eigenen E-Mail-Versand** kannst du ein Passwort in Supabase selbst neu setzen: **SQL Editor** öffnen und Folgendes ausführen (E-Mail-Adresse und neues Passwort anpassen):
 
 ```sql
@@ -86,6 +86,6 @@ Danach mit dem neuen Passwort anmelden und es unter «Konto → Passwort ändern
 
 ## Gut zu wissen
 
-- **Pause bei Gratis-Projekten:** Supabase pausiert Gratis-Projekte nach etwa 7 Tagen ohne Nutzung. Die Daten bleiben erhalten. Beim Projekt in Supabase **Restore** klicken, dann geht es nach ein paar Minuten weiter. Während der Pause meldet Vokabelwelt «Keine Verbindung zum Server»; auf dem Gerät gespeicherte Portionen funktionieren trotzdem.
+- **Pause bei Gratis-Projekten:** Supabase pausiert Gratis-Projekte nach etwa 7 Tagen ohne Nutzung. Die Daten bleiben erhalten. Beim Projekt in Supabase **Restore** klicken, dann geht es nach ein paar Minuten weiter. Während der Pause meldet Vokaboom «Keine Verbindung zum Server»; auf dem Gerät gespeicherte Portionen funktionieren trotzdem.
 - **Datenschutz:** Gespeichert werden die E-Mail-Adresse (für die Anmeldung) und die Portionen: Vokabeln, Bilder-Auswahl und der Übungsstand dieses Geräts. Keine Namen von Kindern.
 - **Eigene Fotos** (hochgeladen oder eingefügt) werden mitgespeichert. Eine Portion darf im Konto höchstens ca. 3 MB gross sein.

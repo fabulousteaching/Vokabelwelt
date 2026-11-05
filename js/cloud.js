@@ -1,9 +1,9 @@
-/* Vokabelwelt – Konto: Portionen im eigenen Konto speichern (Supabase)
+/* Vokaboom – Konto: Portionen im eigenen Konto speichern (Supabase)
  *
  * Anmeldung mit E-Mail-Adresse und Passwort. Links aus E-Mails von Supabase (Konto bestätigen,
  * Passwort vergessen) führen zurück auf diese Seite; supabase-js liest sie aus der Adresse.
  * Tabelle und Zugriffsregeln: supabase/vokabelwelt.sql, Einrichtung: supabase/ANLEITUNG.md.
- * Ohne Eintrag in js/config.js läuft Vokabelwelt wie bisher, nur im Browser.
+ * Ohne Eintrag in js/config.js läuft Vokaboom wie bisher, nur im Browser.
  */
 'use strict';
 
@@ -123,7 +123,7 @@ async function cloudInit() {
     if (data?.session?.user) {
       setCloudUser(data.session.user);
       renderAccountSlot();
-      if (fromMail === 'signup') toast('Deine E-Mail-Adresse ist bestätigt. Willkommen bei Vokabelwelt!');
+      if (fromMail === 'signup') toast('Deine E-Mail-Adresse ist bestätigt. Willkommen bei Vokaboom!');
       if (fromMail === 'email_change') toast(`Deine neue E-Mail-Adresse ${data.session.user.email} ist bestätigt.`);
       await cloudSync();
     }
@@ -329,7 +329,7 @@ function cloudErrorText(e) {
   if (code === 'weak_password' || /password.*(least|short|weak|characters)/i.test(msg)) return 'Das Passwort ist zu schwach. Nimm mindestens 8 Zeichen, am besten mit Buchstaben und Ziffern.';
   if (code === 'same_password') return 'Das ist schon dein Passwort.';
   if (code === 'wrong_password') return 'Das aktuelle Passwort stimmt nicht.';
-  if (code === 'signup_disabled' || /signups? not allowed/i.test(msg)) return 'Neue Konten sind gerade ausgeschaltet. Frag die Person, die Vokabelwelt eingerichtet hat.';
+  if (code === 'signup_disabled' || /signups? not allowed/i.test(msg)) return 'Neue Konten sind gerade ausgeschaltet. Frag die Person, die Vokaboom eingerichtet hat.';
   if (code === 'email_address_invalid' || code === 'email_address_not_authorized' || /email.*invalid|invalid.*email|not authorized/i.test(msg)) return 'An diese E-Mail-Adresse kann Supabase gerade nichts schicken. Prüf die Adresse – oder richte in Supabase einen E-Mail-Versand (SMTP) ein.';
   if (code === 'over_request_rate_limit' || e?.status === 429) return 'Zu viele Versuche. Warte einen Moment und versuch es nochmal.';
   if (code === '42P01' || code === 'PGRST205' || /relation .* does not exist|could not find the table/i.test(msg)) return 'In Supabase fehlt die Tabelle: Bitte supabase/vokabelwelt.sql im SQL Editor ausführen.';

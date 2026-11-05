@@ -1,4 +1,4 @@
-/* Vokabelwelt – Oberfläche: Rahmen, Startseite, Portionsübersicht, Dialoge */
+/* Vokaboom – Oberfläche: Rahmen, Startseite, Portionsübersicht, Dialoge */
 'use strict';
 
 const ICONS = {
@@ -60,9 +60,9 @@ function renderShell() {
   document.getElementById('app').innerHTML = `
     <header class="topbar">
       <div class="topbar-inner">
-        <button class="brand" data-action="home" aria-label="Vokabelwelt – zur Startseite">
-          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="brand-name">Vokabelwelt</span>
+        <button class="brand" data-action="home" aria-label="Vokaboom – zur Startseite">
+          <span class="brand-mark" aria-hidden="true"><svg class="brand-svg" viewBox="0 -6 80 78" aria-hidden="true"><defs><linearGradient id="brandgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4F46E5"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs><rect x="6" y="22" width="36" height="42" rx="10" fill="#FFB703" transform="rotate(-12 24 43)"/><rect x="14" y="20" width="38" height="46" rx="11" fill="url(#brandgrad)"/><path d="M23 34l10 18 10-18" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><g stroke-linecap="round"><path d="M54 13.1L52 2.3" stroke="#EC4899" stroke-width="4"/><path d="M57.8 13.2L63.3 1.9" stroke="#FFB703" stroke-width="4.4"/><path d="M60.3 16.2L70 11" stroke="#EC4899" stroke-width="4"/><path d="M61.5 19.7L68.9 20.5" stroke="#FFB703" stroke-width="3.6"/><path d="M50.2 14.7L45.7 10.6" stroke="#FFB703" stroke-width="3.6"/></g><circle cx="57.9" cy="-1.8" r="2" fill="#EC4899"/><circle cx="75.1" cy="14.7" r="1.9" fill="#FFB703"/><circle cx="71" cy="2.5" r="1.5" fill="#EC4899"/><circle cx="46.5" cy="3.1" r="1.5" fill="#EC4899"/></svg></span>
+          <span class="brand-name">Voka<span class="hot">boom</span></span>
         </button>
         <nav class="crumbs" id="crumbs" aria-label="Wo du gerade bist"></nav>
         <div class="topbar-actions">
@@ -209,7 +209,7 @@ function viewHome() {
     <div class="home-intro">
       <p class="eyebrow">${flag()} Englisch-Vokabeln üben</p>
       <h1>Aus deiner Vokabelliste werden <mark>Lernkarten</mark>, Spiele und ein Test.</h1>
-      <p class="lead">Vokabeln einfügen, fertig. Die Bilder für die Karten sucht Vokabelwelt selbst.</p>
+      <p class="lead">Vokabeln einfügen, fertig. Die Bilder für die Karten sucht Vokaboom selbst.</p>
     </div>
     <div class="home-grid">
       <form class="panel new-set" id="new-set-form" autocomplete="off">
@@ -996,7 +996,7 @@ async function openShare(set) {
   if (isFramed) {
     openModal(`
       <header class="modal-head"><h2>Vokabelliste kopieren</h2><button type="button" class="icon-btn" data-action="close-modal" aria-label="Schließen">${icon('x')}</button></header>
-      <p class="muted">Kopiere die Liste und füge sie in Vokabelwelt auf einem anderen Gerät wieder ein.</p>
+      <p class="muted">Kopiere die Liste und füge sie in Vokaboom auf einem anderen Gerät wieder ein.</p>
       <textarea id="share-text" class="share-box" rows="8" readonly>${esc(text)}</textarea>
       <footer class="modal-foot"><button type="button" class="btn primary" data-action="copy" data-target="share-text">${icon('copy')} Kopieren</button></footer>`, { label: 'Liste kopieren' });
     return;
@@ -1025,7 +1025,7 @@ async function openShare(set) {
         : `<p class="warn">Für einen QR-Code sind es zu viele Wörter. Teile die Portion in zwei kleinere auf – oder kopiere den Link.</p>
         <div class="row center"><button type="button" class="btn primary" data-action="copy-link">${icon('link')} Link kopieren</button></div>`}
       ${hasUploads ? '<p class="muted small">Eigene Fotos sind zu groß für den QR-Code. Dort erscheinen bei den Kindern automatisch gesuchte Bilder.</p>' : ''}
-      ${location.protocol === 'file:' ? '<p class="warn">Du hast Vokabelwelt als Datei geöffnet. Damit der QR-Code bei anderen funktioniert, muss Vokabelwelt im Internet liegen (zum Beispiel über GitHub Pages).</p>' : ''}
+      ${location.protocol === 'file:' ? '<p class="warn">Du hast Vokaboom als Datei geöffnet. Damit der QR-Code bei anderen funktioniert, muss Vokaboom im Internet liegen (zum Beispiel über GitHub Pages).</p>' : ''}
     </div>`, { cls: 'share-modal', label: 'Teilen' });
 }
 
@@ -1105,7 +1105,7 @@ function saveQRImage() {
     if (!blob) return;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `Vokabelwelt-QR-${sh.name.replace(/[^\wäöüÄÖÜß-]+/g, '-').slice(0, 40)}.png`;
+    a.download = `Vokaboom-QR-${sh.name.replace(/[^\wäöüÄÖÜß-]+/g, '-').slice(0, 40)}.png`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     toast('QR-Code als Bild gespeichert.');

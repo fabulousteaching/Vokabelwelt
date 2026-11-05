@@ -1,4 +1,4 @@
--- Vokabelwelt: Tabelle und Zugriffsregeln für gespeicherte Vokabelportionen
+-- Vokaboom: Tabelle und Zugriffsregeln für gespeicherte Vokabelportionen
 -- In Supabase unter «SQL Editor» einfügen und auf «Run» klicken. Mehrmals ausführen schadet nicht.
 -- Funktioniert in einem eigenen Projekt und auch im SmartSlots-Projekt (eigene Tabelle, nichts wird überschrieben).
 
