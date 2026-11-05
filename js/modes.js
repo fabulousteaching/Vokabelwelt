@@ -231,10 +231,13 @@ function cardAnswer(known) {
 }
 
 /* =========================================================
-   2 · ZUORDNEN
+   2 · ZUORDNEN (wie Memory: zwei Kärtchen antippen, die zusammengehören)
    ========================================================= */
-const match = { variant: 'pic', rounds: [], round: 0, selected: null, done: [], mistakes: 0, total: 0, drag: null, ro: null, finished: false, colors: 0, choosing: false };
-const PAIR_COLORS = 6;
+const match = { variant: 'pic', covered: false, rounds: [], round: 0, tiles: [], sel: null, open: [], busy: false, mistakes: 0, found: 0, total: 0, finished: false, choosing: false, t0: 0, elapsed: 0, tick: null, best: null, newBest: false };
+const MEM_PER_ROUND = 6; // Paare pro Runde → 12 Kärtchen
+
+const fmtTime = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const matchTimeKey = () => match.variant + (match.covered ? '-verdeckt' : '');
 
 function startMatch(set, variant) {
   match.choosing = false;
@@ -251,28 +254,56 @@ function startMatch(set, variant) {
     return true;
   });
   pool = shuffle(pool);
-  const perRound = variant === 'pic' ? 5 : 6; // Bilder größer zeigen → weniger pro Runde
-  const nR = Math.max(1, Math.ceil(pool.length / perRound));
+  const nR = Math.max(1, Math.ceil(pool.length / MEM_PER_ROUND));
   const size = Math.ceil(pool.length / nR);
   match.rounds = [];
   for (let i = 0; i < pool.length; i += size) match.rounds.push(pool.slice(i, i + size).map((w) => w.id));
-  match.round = 0; match.mistakes = 0; match.total = pool.length; match.finished = false; match.colors = 0;
-  match.selected = null; match.done = []; match.drag = null;
+  clearInterval(match.tick);
+  Object.assign(match, { round: 0, mistakes: 0, found: 0, total: pool.length, finished: false, tiles: [], sel: null, open: [], busy: false, t0: 0, elapsed: 0, newBest: false });
+  dealRound();
+}
+
+/** Kärtchen der aktuellen Runde mischen: je Paar ein Kärtchen links (Bild/Englisch) und eins rechts (Englisch/Deutsch) */
+function dealRound() {
+  const ids = match.rounds[match.round] || [];
+  match.tiles = shuffle(ids.flatMap((id) => [{ id, side: 'L', gone: false }, { id, side: 'R', gone: false }]));
+  match.sel = null; match.open = []; match.busy = false;
+}
+
+function memTileHTML(set, t, i) {
+  const w = set.words.find((x) => x.id === t.id);
+  if (!w) return '';
+  let face, label;
+  if (match.variant === 'pic' && t.side === 'L') { face = picHTML(w, set.lang, 'mem-pic'); label = 'Bild'; }
+  else if (t.side === 'L' || match.variant === 'pic') { face = `<span class="mem-word" lang="en">${esc(w.foreign)}</span>`; label = w.foreign; }
+  else { face = `<span class="mem-word de" lang="de">${esc(w.german)}</span>`; label = w.german; }
+  const isPic = match.variant === 'pic' && t.side === 'L';
+  return `<button type="button" class="mem ${isPic ? 'is-pic' : 'is-word'} ${t.gone ? 'gone' : ''}" data-action="mem-tap" data-i="${i}" ${t.gone ? 'disabled' : ''}
+      aria-label="${match.covered ? 'Verdecktes Kärtchen' : esc(label)}">
+    <span class="mem-inner">
+      <span class="mem-face mem-front">${face}</span>
+      ${match.covered ? `<span class="mem-face mem-back" aria-hidden="true"><span class="mem-mark">V</span></span>` : ''}
+    </span>
+  </button>`;
 }
 
 function renderMatch() {
   const set = currentSet();
   const v = $('#view');
   const L = LANGS[set.lang].name;
-  match.ro?.disconnect();
+  clearInterval(match.tick);
   if (match.choosing) { renderMatchChoice(set); return; }
   const bar = `
     <div class="mode-bar">
       <h1 class="mode-title">Zuordnen</h1>
       <div class="mode-controls">
-        <div class="seg small" role="group" aria-label="Was verbunden wird">
+        <div class="seg small" role="group" aria-label="Was zusammengehört">
           <button class="seg-btn" data-action="match-variant" data-variant="pic" aria-pressed="${match.variant === 'pic'}">${icon('image')}<span>Bild ↔ ${L}</span></button>
           <button class="seg-btn" data-action="match-variant" data-variant="de" aria-pressed="${match.variant === 'de'}"><span>${L} ↔ Deutsch</span></button>
+        </div>
+        <div class="seg small" role="group" aria-label="Kärtchen offen oder verdeckt">
+          <button class="seg-btn" data-action="mem-mode" data-covered="0" aria-pressed="${!match.covered}">${icon('eye')}<span>Offen</span></button>
+          <button class="seg-btn" data-action="mem-mode" data-covered="1" aria-pressed="${match.covered}">${icon('grid')}<span>Verdeckt</span></button>
         </div>
       </div>
     </div>`;
@@ -287,13 +318,14 @@ function renderMatch() {
   }
 
   if (match.finished) {
-    const ratio = match.mistakes / match.total;
-    const st = match.mistakes === 0 ? 3 : ratio <= 0.35 ? 2 : 1;
+    const st = matchStars();
     v.innerHTML = `<section class="mode match-mode">${bar}
       <div class="result">
         ${stars(st)}
-        <h2>${st === 3 ? 'Perfekt! Alles ohne Fehler verbunden.' : st === 2 ? 'Super gemacht!' : 'Geschafft! Übung macht den Meister.'}</h2>
-        <p class="result-line">${match.total} Paare, ${match.mistakes} ${match.mistakes === 1 ? 'Fehler' : 'Fehler'}.</p>
+        <h2>${st === 3 ? 'Perfekt! Alle Paare gefunden.' : st === 2 ? 'Super gemacht!' : 'Geschafft! Übung macht den Meister.'}</h2>
+        <p class="mem-final"><span class="mem-clock big">${icon('clock')} ${fmtTime(match.elapsed)}</span>
+          ${match.newBest ? '<span class="best-badge">Neue Bestzeit!</span>' : match.best ? `<span class="muted">Bestzeit ${fmtTime(match.best)}</span>` : ''}</p>
+        <p class="result-line">${match.total} Paare, ${match.mistakes} ${match.covered ? (match.mistakes === 1 ? 'Fehlversuch' : 'Fehlversuche') : 'Fehler'}.</p>
         <div class="row center">
           <button class="btn primary" data-action="match-variant" data-variant="${match.variant}">${icon('shuffle')} Nochmal</button>
           <button class="btn secondary" data-action="match-variant" data-variant="${match.variant === 'pic' ? 'de' : 'pic'}">${match.variant === 'pic' ? `${L} ↔ Deutsch` : `Bild ↔ ${L}`}</button>
@@ -303,31 +335,127 @@ function renderMatch() {
     return;
   }
 
-  const ids = match.rounds[match.round];
-  const words = wordsById(set, ids);
-  const left = shuffle(words), right = shuffle(words);
-  const leftItem = (w) => (match.variant === 'pic'
-    ? `<button class="m-item m-pic" data-side="L" data-id="${w.id}" aria-label="Bild ${esc(w.german || '')}">${picHTML(w, set.lang, 'm-picimg')}</button>`
-    : `<button class="m-item m-word" data-side="L" data-id="${w.id}" lang="${set.lang}"><span>${esc(w.foreign)}</span></button>`);
-  const rightItem = (w) => (match.variant === 'pic'
-    ? `<button class="m-item m-word" data-side="R" data-id="${w.id}" lang="${set.lang}"><span>${esc(w.foreign)}</span></button>`
-    : `<button class="m-item m-word de" data-side="R" data-id="${w.id}" lang="de"><span>${esc(w.german)}</span></button>`);
-
   v.innerHTML = `<section class="mode match-mode">${bar}
-    ${progressBar(match.round / match.rounds.length, 'Runden')}
-    <p class="progress-label"><span>Runde ${match.round + 1} von ${match.rounds.length}</span><span class="tally"><b class="bad">${icon('x')} ${match.mistakes} Fehler</b></span></p>
-    <div class="match-board ${match.variant === 'pic' ? 'is-pic' : 'is-words'}" id="m-board">
-      <svg class="m-lines" id="m-lines" aria-hidden="true"></svg>
-      <div class="m-col left">${left.map(leftItem).join('')}</div>
-      <div class="m-col right">${right.map(rightItem).join('')}</div>
+    ${progressBar(match.found / match.total, 'Gefundene Paare')}
+    <p class="progress-label"><span>${match.found} von ${match.total} Paaren${match.rounds.length > 1 ? ` · Runde ${match.round + 1} von ${match.rounds.length}` : ''}</span>
+      <span class="tally"><b class="mem-clock" id="mem-time">${icon('clock')} ${fmtTime(match.t0 ? Date.now() - match.t0 : 0)}</b><b class="bad" id="mem-miss">${icon('x')} ${match.mistakes}</b></span></p>
+    <p class="mode-hint mem-hint">${match.covered ? 'Decke zwei Kärtchen auf. Gehören sie zusammen, verschwinden sie. Merk dir, wo was liegt!' : 'Tippe zwei Kärtchen an, die zusammengehören. Dann verschwinden sie.'} Die Uhr läuft ab dem ersten Tippen.</p>
+    <div class="mem-grid ${match.covered ? 'covered' : ''} ${match.variant === 'pic' ? 'is-pic' : 'is-words'}" id="mem-grid" style="--cols:${memCols(match.tiles.length)}">
+      ${match.tiles.map((t, i) => memTileHTML(set, t, i)).join('')}
     </div>
-    <p class="mode-hint">Tippe links etwas an und dann rechts das Passende – oder zieh eine Linie.</p>
   </section>`;
-  match.done = []; match.selected = null;
-  bindMatchBoard();
+  if (match.t0) startMatchClock();
 }
 
-/** Erst wählen, was verbunden wird */
+/** Spalten: 12 Kärtchen → 4 (Handy 3), weniger entsprechend */
+const memCols = (n) => (n <= 4 ? 2 : n <= 6 ? 3 : n <= 9 ? 3 : 4);
+
+function startMatchClock() {
+  clearInterval(match.tick);
+  match.tick = setInterval(() => {
+    const el = $('#mem-time');
+    if (!el || ui.view !== 'match') { clearInterval(match.tick); return; }
+    el.innerHTML = `${icon('clock')} ${fmtTime(Date.now() - match.t0)}`;
+  }, 250);
+}
+
+const memEl = (i) => $(`.mem[data-i="${i}"]`);
+
+function memTap(i) {
+  const set = currentSet();
+  const t = match.tiles[i];
+  if (!t || t.gone || match.busy || match.finished) return;
+  if (!match.t0) { match.t0 = Date.now(); startMatchClock(); }
+  if (match.covered) {
+    if (match.open.includes(i)) return;
+    match.open.push(i);
+    memEl(i)?.classList.add('open');
+    sfx.flip();
+    if (match.open.length < 2) return;
+    const [a, b] = match.open;
+    match.busy = true;
+    if (isPair(a, b)) setTimeout(() => memMatched(set, a, b), 450);
+    else {
+      match.mistakes++;
+      updateMemMiss();
+      setTimeout(() => {
+        [a, b].forEach((k) => memEl(k)?.classList.remove('open'));
+        match.open = []; match.busy = false;
+      }, 1000);
+    }
+    return;
+  }
+  // offen: zwei antippen
+  const sel = match.sel;
+  if (sel == null) { match.sel = i; memEl(i)?.classList.add('selected'); return; }
+  if (sel === i) { match.sel = null; memEl(i)?.classList.remove('selected'); return; }
+  const s = match.tiles[sel];
+  if (s.side === t.side) { // zwei Bilder oder zwei englische Wörter: Auswahl wechseln
+    memEl(sel)?.classList.remove('selected');
+    match.sel = i; memEl(i)?.classList.add('selected');
+    return;
+  }
+  match.sel = null;
+  if (isPair(sel, i)) { memMatched(set, sel, i); return; }
+  match.mistakes++;
+  updateMemMiss();
+  sfx.bad();
+  [sel, i].forEach((k) => { const el = memEl(k); if (!el) return; el.classList.remove('selected', 'wrong'); void el.offsetWidth; el.classList.add('wrong'); setTimeout(() => el.classList.remove('wrong'), 600); });
+}
+
+const isPair = (a, b) => match.tiles[a].id === match.tiles[b].id && match.tiles[a].side !== match.tiles[b].side;
+function updateMemMiss() { const m = $('#mem-miss'); if (m) m.innerHTML = `${icon('x')} ${match.mistakes}`; }
+
+function memMatched(set, a, b) {
+  const w = set.words.find((x) => x.id === match.tiles[a].id);
+  [a, b].forEach((k) => { match.tiles[k].gone = true; const el = memEl(k); if (el) { el.classList.remove('selected'); el.classList.add('matched'); el.disabled = true; } });
+  match.found++;
+  match.open = [];
+  sfx.good();
+  if (w && db.settings.autoSpeak) speak(w.foreign, set.lang);
+  const pf = $('.match-mode .progress-fill'), pl = $('.match-mode .progress-label span');
+  if (pf) pf.style.width = `${(match.found / match.total) * 100}%`;
+  if (pl) pl.textContent = `${match.found} von ${match.total} Paaren${match.rounds.length > 1 ? ` · Runde ${match.round + 1} von ${match.rounds.length}` : ''}`;
+  setTimeout(() => {
+    [a, b].forEach((k) => memEl(k)?.classList.add('gone'));
+    match.busy = false;
+    if (match.tiles.every((x) => x.gone)) {
+      setTimeout(() => {
+        if (ui.view !== 'match') return;
+        match.round++;
+        if (match.round >= match.rounds.length) finishMatch(set);
+        else { dealRound(); renderMatch(); }
+      }, 350);
+    }
+  }, 420);
+}
+
+function matchStars() {
+  const r = match.mistakes / match.total;
+  if (match.covered) return r <= 0.75 ? 3 : r <= 1.75 ? 2 : 1; // verdeckt: Fehlversuche gehören dazu
+  return match.mistakes === 0 ? 3 : r <= 0.35 ? 2 : 1;
+}
+
+function finishMatch(set) {
+  clearInterval(match.tick);
+  match.finished = true;
+  match.elapsed = match.t0 ? Date.now() - match.t0 : 0;
+  const st = matchStars();
+  const prev = set.progress?.match || {};
+  const times = { ...(prev.times || {}) };
+  const key = matchTimeKey();
+  match.best = times[key] || null;
+  match.newBest = !!match.elapsed && (!times[key] || match.elapsed < times[key]);
+  if (match.newBest) times[key] = match.elapsed;
+  const next = { ...prev, times };
+  if (!match.covered) next[match.variant] = Math.max(prev[match.variant] || 0, st);
+  saveProgress(set, 'match', next);
+  sfx.win();
+  if (st >= 2 || match.newBest) confetti();
+  renderMatch();
+}
+
+/** Erst wählen, was zusammengehört */
 function renderMatchChoice(set) {
   const L = LANGS[set.lang].name;
   const withPic = set.words.filter((w) => w.foreign && hasPicture(w, set.lang));
@@ -336,155 +464,28 @@ function renderMatchChoice(set) {
   $('#view').innerHTML = `<section class="mode match-mode">
     <div class="mode-bar"><h1 class="mode-title">Zuordnen</h1></div>
     <div class="test-card setup choose-card">
-      <h2>Was möchtest du verbinden?</h2>
+      <h2>Was gehört zusammen?</h2>
       <div class="choose-grid">
         <button class="choose-tile" data-action="match-variant" data-variant="pic" ${withPic.length >= 2 ? '' : 'disabled'}>
           <span class="choose-demo" aria-hidden="true">${sample(withPic, (w) => `<span class="cd-row">${picHTML(w, set.lang, 'mini')}<i></i><b lang="en">${esc(w.foreign)}</b></span>`)}</span>
           <strong>${icon('image')} Bild ↔ ${L}</strong>
-          <small>${withPic.length >= 2 ? `Verbinde jedes Bild mit dem englischen Wort.` : 'Dafür brauchen mindestens zwei Karten ein Bild.'}</small>
+          <small>${withPic.length >= 2 ? 'Finde zu jedem Bild das englische Wort.' : 'Dafür brauchen mindestens zwei Karten ein Bild.'}</small>
         </button>
         <button class="choose-tile" data-action="match-variant" data-variant="de" ${withDe.length >= 2 ? '' : 'disabled'}>
           <span class="choose-demo" aria-hidden="true">${sample(withDe, (w) => `<span class="cd-row"><b lang="en">${esc(w.foreign)}</b><i></i><b lang="de">${esc(w.german)}</b></span>`)}</span>
           <strong>${icon('link')} ${L} ↔ Deutsch</strong>
-          <small>${withDe.length >= 2 ? 'Verbinde das englische mit dem deutschen Wort.' : 'Dafür brauchen mindestens zwei Karten eine Übersetzung.'}</small>
+          <small>${withDe.length >= 2 ? 'Finde zu jedem englischen Wort das deutsche.' : 'Dafür brauchen mindestens zwei Karten eine Übersetzung.'}</small>
         </button>
+      </div>
+      <div class="choose-mode">
+        <span class="label-inline">Kärtchen:</span>
+        <div class="seg small" role="group" aria-label="Kärtchen offen oder verdeckt">
+          <button class="seg-btn" data-action="mem-mode" data-covered="0" aria-pressed="${!match.covered}">${icon('eye')}<span>Offen</span></button>
+          <button class="seg-btn" data-action="mem-mode" data-covered="1" aria-pressed="${match.covered}">${icon('grid')}<span>Verdeckt (Memory)</span></button>
+        </div>
       </div>
     </div>
   </section>`;
-}
-
-function bindMatchBoard() {
-  const board = $('#m-board');
-  if (!board) return;
-  board.addEventListener('pointerdown', (e) => {
-    const it = e.target.closest('.m-item');
-    if (!it || it.classList.contains('done') || e.button > 0) return;
-    e.preventDefault();
-    match.drag = { from: it, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, moved: false, id: e.pointerId };
-    it.classList.add('pressed');
-  });
-  const move = (e) => {
-    const d = match.drag;
-    if (!d || e.pointerId !== d.id) return;
-    d.x = e.clientX; d.y = e.clientY;
-    if (!d.moved && Math.hypot(d.x - d.x0, d.y - d.y0) > 10) d.moved = true;
-    if (d.moved) {
-      $$('.m-item.hover', board).forEach((x) => x.classList.remove('hover'));
-      const t = document.elementFromPoint(d.x, d.y)?.closest('.m-item');
-      if (t && t !== d.from && t.dataset.side !== d.from.dataset.side && !t.classList.contains('done')) t.classList.add('hover');
-      drawLines();
-    }
-  };
-  const up = (e) => {
-    const d = match.drag;
-    if (!d || e.pointerId !== d.id) return;
-    match.drag = null;
-    d.from.classList.remove('pressed');
-    $$('.m-item.hover', board).forEach((x) => x.classList.remove('hover'));
-    if (d.moved) {
-      const t = document.elementFromPoint(e.clientX, e.clientY)?.closest('.m-item');
-      if (t && t.dataset.side !== d.from.dataset.side && !t.classList.contains('done')) attemptPair(d.from, t);
-      drawLines();
-    } else tapItem(d.from);
-  };
-  window.addEventListener('pointermove', move);
-  window.addEventListener('pointerup', up);
-  window.addEventListener('pointercancel', up);
-  board.addEventListener('click', (e) => {
-    const it = e.target.closest('.m-item');
-    if (it && e.detail === 0 && !it.classList.contains('done')) tapItem(it); // Tastatur
-  });
-  match.ro = new ResizeObserver(() => drawLines());
-  match.ro.observe(board);
-  const cleanup = () => {
-    window.removeEventListener('pointermove', move);
-    window.removeEventListener('pointerup', up);
-    window.removeEventListener('pointercancel', up);
-  };
-  const prevDisconnect = match.ro.disconnect.bind(match.ro);
-  match.ro.disconnect = () => { cleanup(); prevDisconnect(); };
-}
-
-function tapItem(it) {
-  const sel = match.selected;
-  if (!sel) { select(it); return; }
-  if (sel === it) { select(null); return; }
-  if (sel.dataset.side === it.dataset.side) { select(it); return; }
-  attemptPair(sel, it);
-}
-function select(it) {
-  match.selected?.classList.remove('selected');
-  match.selected = it;
-  it?.classList.add('selected');
-}
-
-function attemptPair(a, b) {
-  const set = currentSet();
-  const L = a.dataset.side === 'L' ? a : b, R = a.dataset.side === 'L' ? b : a;
-  select(null);
-  if (L.dataset.id === R.dataset.id) {
-    const color = (match.colors++ % PAIR_COLORS) + 1;
-    [L, R].forEach((x) => { x.classList.add('done', `c${color}`); x.disabled = true; });
-    match.done.push({ id: L.dataset.id, color });
-    drawLines();
-    sfx.good();
-    const w = set.words.find((x) => x.id === L.dataset.id);
-    if (w && db.settings.autoSpeak) speak(w.foreign, set.lang);
-    if (match.done.length === match.rounds[match.round].length) {
-      setTimeout(() => {
-        if (ui.view !== 'match') return;
-        match.round++;
-        if (match.round >= match.rounds.length) finishMatch(set);
-        else renderMatch();
-      }, 900);
-    }
-  } else {
-    match.mistakes++;
-    sfx.bad();
-    [L, R].forEach((x) => { x.classList.remove('wrong'); void x.offsetWidth; x.classList.add('wrong'); });
-    setTimeout(() => [L, R].forEach((x) => x.classList.remove('wrong')), 600);
-    const t = $('.match-mode .tally .bad');
-    if (t) t.innerHTML = `${icon('x')} ${match.mistakes} Fehler`;
-  }
-}
-
-function finishMatch(set) {
-  match.finished = true;
-  const st = match.mistakes === 0 ? 3 : match.mistakes / match.total <= 0.35 ? 2 : 1;
-  const prev = set.progress?.match || {};
-  saveProgress(set, 'match', { ...prev, [match.variant]: Math.max(prev[match.variant] || 0, st) });
-  sfx.win();
-  if (st >= 2) confetti();
-  renderMatch();
-}
-
-function drawLines() {
-  const board = $('#m-board'), svg = $('#m-lines');
-  if (!board || !svg) return;
-  const br = board.getBoundingClientRect();
-  svg.setAttribute('viewBox', `0 0 ${br.width} ${br.height}`);
-  const anchor = (el, side) => {
-    const r = el.getBoundingClientRect();
-    return { x: (side === 'L' ? r.right : r.left) - br.left, y: r.top + r.height / 2 - br.top };
-  };
-  const curve = (p, q) => {
-    const dx = Math.max(24, Math.abs(q.x - p.x) * 0.45) * (q.x >= p.x ? 1 : -1);
-    return `M${p.x.toFixed(1)} ${p.y.toFixed(1)} C ${(p.x + dx).toFixed(1)} ${p.y.toFixed(1)}, ${(q.x - dx).toFixed(1)} ${q.y.toFixed(1)}, ${q.x.toFixed(1)} ${q.y.toFixed(1)}`;
-  };
-  let html = '';
-  for (const pr of match.done) {
-    const a = $(`.m-item[data-side="L"][data-id="${pr.id}"]`, board), b = $(`.m-item[data-side="R"][data-id="${pr.id}"]`, board);
-    if (!a || !b) continue;
-    const p = anchor(a, 'L'), q = anchor(b, 'R');
-    html += `<path class="m-line c${pr.color}" d="${curve(p, q)}"/><circle class="m-dot c${pr.color}" cx="${p.x}" cy="${p.y}" r="6"/><circle class="m-dot c${pr.color}" cx="${q.x}" cy="${q.y}" r="6"/>`;
-  }
-  const d = match.drag;
-  if (d && d.moved) {
-    const p = anchor(d.from, d.from.dataset.side);
-    const q = { x: d.x - br.left, y: d.y - br.top };
-    html += `<path class="m-line drag" d="${curve(p, q)}"/><circle class="m-dot drag" cx="${p.x}" cy="${p.y}" r="6"/>`;
-  }
-  svg.innerHTML = html;
 }
 
 /* =========================================================

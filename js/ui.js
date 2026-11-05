@@ -27,6 +27,7 @@ const ICONS = {
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   stop: '<rect x="7" y="7" width="10" height="10" rx="2"/>',
+  clock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5M12 2.5V5"/>',
   pencil2: '<path d="M3 21l3.5-1 11-11-2.5-2.5-11 11z"/><path d="M14 6.5l2.5-2.5 3.5 3.5-2.5 2.5"/>',
   brush: '<path d="M14.5 4.5l5 5-7.5 7.5-5-5z"/><path d="M7 12c-2 0-4 1.5-4 4.5V20h3.5C9.5 20 11 18 11 16"/>',
   picto: '<circle cx="12" cy="5.5" r="2.5"/><path d="M12 9v6M7.5 11.5 12 9l4.5 2.5M9 21l3-6 3 6"/>',
@@ -119,7 +120,7 @@ function stopModes() {
   clearTimeout(cards?.speakTimer);
   clearTimeout(test?.timer);
   clearTimeout(dict?.timer);
-  match?.ro?.disconnect();
+  clearInterval(match?.tick);
 }
 
 /* ---------------- Meldungen ---------------- */
@@ -328,8 +329,9 @@ function progressInfo(set) {
   const p = set.progress || {};
   return {
     cards: p.cards ? `${p.cards.known} von ${p.cards.total} sofort gewusst` : 'Noch nicht geübt',
-    match: (p.match && (p.match.pic != null || p.match.de != null))
-      ? `${p.match.pic != null ? `Bild ${stars(p.match.pic)}` : ''} ${p.match.de != null ? `Deutsch ${stars(p.match.de)}` : ''}` : 'Noch nicht gespielt',
+    match: (p.match && (p.match.pic != null || p.match.de != null || p.match.times))
+      ? [['pic', 'Bild'], ['de', 'Deutsch']].map(([k, t]) => (p.match[k] != null || p.match.times?.[k]
+        ? `${t} ${p.match[k] != null ? stars(p.match[k]) : ''}${p.match.times?.[k] ? ` ${fmtTime(p.match.times[k])}` : ''}` : '')).join(' ') : 'Noch nicht gespielt',
     speak: p.speak ? `${p.speak.correct} von ${p.speak.total} gleich richtig` : 'Noch nicht geübt',
     dictation: p.dictation ? `${p.dictation.correct} von ${p.dictation.total} gleich richtig` : 'Noch nicht geübt',
     test: p.test ? `Bestes Ergebnis ${p.test.best} %` : 'Noch kein Test',
