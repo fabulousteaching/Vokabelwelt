@@ -25,8 +25,8 @@ Das SQL legt die Tabelle `vokabelwelt_sets` an und sorgt dafür, dass jede Perso
 
 **Authentication → URL Configuration**
 
-- **Site URL:** `https://fabulousteaching.github.io/Vokabelwelt/`
-- **Redirect URLs:** `https://fabulousteaching.github.io/Vokabelwelt/**` hinzufügen.
+- **Site URL:** `https://vokaboom.fabulousteaching.ch/`
+- **Redirect URLs:** `https://vokaboom.fabulousteaching.ch/**` hinzufügen. Die alte Adresse `https://fabulousteaching.github.io/Vokabelwelt/**` darf in der Liste bleiben.
 
 Dorthin führen die Links in den E-Mails (Konto bestätigen, Passwort vergessen).
 

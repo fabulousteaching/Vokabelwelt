@@ -71,9 +71,12 @@ Mit **Anmelden** (oben rechts, mit E-Mail-Adresse und Passwort) werden deine Por
 
 ## Online stellen (GitHub Pages)
 
-1. Im Repository auf **Settings → Pages** gehen.
-2. Bei „Build and deployment“ **Deploy from a branch** wählen, den Branch mit Vokaboom (z. B. `claude/vokabelwelt-app`) und Ordner **/ (root)**.
-3. Nach ein bis zwei Minuten ist Vokaboom unter `https://<benutzername>.github.io/<repository>/` erreichbar.
+Vokaboom läuft unter **https://vokaboom.fabulousteaching.ch** (GitHub Pages mit eigener Subdomain).
+
+1. Im Repository unter **Settings → Pages** ist „Deploy from a branch“ gewählt: Branch `claude/vokabelwelt-app`, Ordner **/ (root)**. Jede Änderung ist nach ein bis zwei Minuten online.
+2. Die Datei `CNAME` enthält die Adresse `vokaboom.fabulousteaching.ch`. Bei Infomaniak zeigt dafür in der DNS-Zone von fabulousteaching.ch ein Eintrag **CNAME `vokaboom` → `fabulousteaching.github.io`** auf GitHub.
+3. Unter **Settings → Pages** ist **Enforce HTTPS** angehakt.
+4. Die alte Adresse `https://fabulousteaching.github.io/Vokabelwelt/` leitet automatisch weiter, auch bereits verteilte QR-Codes und Links.
 
 Man kann `index.html` auch einfach per Doppelklick öffnen. Für Spracherkennung und Teilen-Links ist die Online-Version aber besser.
 
